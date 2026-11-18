@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart City Tumakuru - Citizen Amenities Portal | ಸ್ಮಾರ್ಟ್ ಸಿಟಿ ತುಮಕೂರು</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Kannada:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Leaflet Interactive Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-light">
+    <!-- Global Toast Notification Container -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 1: AUTHENTICATION / LOGIN SCREEN                          -->
+    <!-- ============================================================== -->
+    <section id="login-view" class="app-page active-page">
+        <div class="login-container">
+            <!-- Left Branding Showcase Panel -->
+            <div class="login-brand-panel">
+                <div class="brand-glow"></div>
+                <div class="brand-content">
+                    <div class="gov-badge">
+                        <i class="fa-solid fa-landmark-flag"></i>
+                        <span>Government of Karnataka &bull; Smart City Tumakuru</span>
+                    </div>
+
+                    <div class="city-brand-header">
+                        <div class="city-icon-wrapper">
+                            <i class="fa-solid fa-city"></i>
+                        </div>
+                        <div>
+                            <h1>Smart City Tumakuru</h1>
+                            <p class="kannada-hero-text">ಸ್ಮಾರ್ಟ್ ಸಿಟಿ ತುಮಕೂರು ಮಹಾನಗರ ಪಾಲಿಕೆ</p>
+                        </div>
+                    </div>
+
+                    <p class="brand-tagline">
+                        Official Citizen Amenities & Urban Infrastructure Portal. Access verified schools, hospitals, post offices, pharmacies, police stations, banks, and parks across Tumakuru's top key surrounding neighborhoods.
+                    </p>
+
+                    <!-- Feature Highlights -->
+                    <div class="brand-highlights">
+                        <div class="highlight-item">
+                            <div class="highlight-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+                            <div>
+                                <strong>5 Major Neighborhoods</strong>
+                                <span>Sira Gate, SS Puram, Vinayaka Nagara, Bhadramma Circle, Yallapura</span>
+                            </div>
+                        </div>
+                        <div class="highlight-item">
+                            <div class="highlight-icon"><i class="fa-solid fa-layer-group"></i></div>
+                            <div>
+                                <strong>7 Essential Public Services</strong>
+                                <span>Schools, Hospitals, Post Offices, Medicals, Police, Banks, Parks</span>
+                            </div>
+                        </div>
+                        <div class="highlight-item">
+                            <div class="highlight-icon"><i class="fa-solid fa-phone-volume"></i></div>
+                            <div>
+                                <strong>24/7 Citizen Emergency Desk</strong>
+                                <span>Direct connectivity to police, ambulance, medical care and corporation</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="brand-footer-note">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>Secure Citizen Services Access &bull; Digital India Initiative</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Login Form Card -->
+            <div class="login-card-panel">
+                <div class="login-card">
+                    <div class="login-header">
+                        <div class="login-avatar">
+                            <i class="fa-solid fa-user-lock"></i>
+                        </div>
+                        <h2>Citizen Portal Login</h2>
+                        <p class="login-sub">Please sign in to view surrounding area facilities</p>
+                    </div>
+
+                    <!-- Quick Demo Credentials Helper -->
+                    <div class="demo-login-box">
+                        <div class="demo-title">
+                            <i class="fa-solid fa-bolt"></i>
+                            <span>Quick Demo Access (Click to autofill)</span>
+                        </div>
+                        <div class="demo-buttons-row">
+                            <button type="button" class="btn-demo-pill" id="demo-citizen-btn">
+                                <i class="fa-solid fa-user"></i> Citizen
+                            </button>
+                            <button type="button" class="btn-demo-pill" id="demo-admin-btn">
+                                <i class="fa-solid fa-user-shield"></i> Officer
+                            </button>
+                            <button type="button" class="btn-demo-pill" id="demo-guest-btn">
+                                <i class="fa-solid fa-id-card"></i> Visitor
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Login Form -->
+                    <form id="login-form" novalidate>
+                        <!-- Username / Email -->
+                        <div class="form-group">
+                            <label for="username">
+                                <i class="fa-solid fa-envelope"></i> Username or Email
+                            </label>
+                            <div class="input-wrapper">
+                                <i class="input-icon fa-solid fa-circle-user"></i>
+                                <input 
+                                    type="text" 
+                                    id="username" 
+                                    name="username" 
+                                    placeholder="e.g. tumkur.citizen@smartcity.gov" 
+                                    value="tumkur.citizen@smartcity.gov"
+                                    required 
+                                    autocomplete="username"
+                                >
+                            </div>
+                            <span class="field-error" id="username-error"></span>
+                        </div>
+
+                        <!-- Password -->
+                        <div class="form-group">
+                            <div class="label-row">
+                                <label for="password">
+                                    <i class="fa-solid fa-lock"></i> Password
+                                </label>
+                                <a href="javascript:void(0)" class="forgot-link" id="forgot-password-link">Forgot?</a>
+                            </div>
+                            <div class="input-wrapper">
+                                <i class="input-icon fa-solid fa-key"></i>
+                                <input 
+                                    type="password" 
+                                    id="password" 
+                                    name="password" 
+                                    placeholder="Enter your password" 
+                                    value="Tumakuru@2026"
+                                    required 
+                                    autocomplete="current-password"
+                                >
+                                <button type="button" class="toggle-password-btn" id="toggle-password" title="Toggle password visibility">
+                                    <i class="fa-regular fa-eye"></i>
+                                </button>
+                            </div>
+                            <span class="field-error" id="password-error"></span>
+                        </div>
+
+                        <!-- Options -->
+                        <div class="form-options">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="remember-me" checked>
+                                <span class="checkmark"></span>
+                                <span class="checkbox-label">Keep me logged in on this browser</span>
+                            </label>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn-primary btn-login-submit" id="login-submit-btn">
+                            <span>Sign In to Smart City</span>
+                            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                        </button>
+
+                        <!-- Direct Skip / Explore Button -->
+                        <button type="button" class="btn-secondary" id="direct-skip-btn" style="width: 100%; margin-top: 10px; justify-content: center; background: #f0fdf4; border-color: #86efac; color: #166534; font-weight: 700;">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            <span>Instant Access (Explore Portal Directly)</span>
+                        </button>
+                    </form>
+
+                    <div class="login-footer">
+                        <p class="login-help-text">
+                            Need help? Call Smart City Citizen Helpline: <strong>0816-2278453</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 2: FIRST PAGE - ONLY AREAS (AFTER LOGIN)                 -->
+    <!-- ============================================================== -->
+    <main id="page-areas" class="app-page">
+        <!-- Top App Navigation Bar -->
+        <header class="app-navbar">
+            <div class="nav-container">
+                <div class="nav-brand">
+                    <div class="nav-logo">
+                        <i class="fa-solid fa-city"></i>
+                    </div>
+                    <div class="nav-titles">
+                        <div class="brand-title-group">
+                            <span class="brand-main">Smart City Tumakuru</span>
+                            <span class="brand-kannada">ಸ್ಮಾರ್ಟ್ ಸಿಟಿ ತುಮಕೂರು</span>
+                        </div>
+                        <span class="brand-sub">Public Facilities & Surrounding Neighborhoods Hub</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Controls -->
+                <div class="nav-controls">
+                    <div class="user-session-menu">
+                        <div class="user-chip" id="user-chip" title="Active citizen session">
+                            <div class="user-avatar-circle">
+                                <i class="fa-solid fa-user-check"></i>
+                            </div>
+                            <div class="user-info-text">
+                                <span class="user-name" id="display-user-name">Citizen User</span>
+                                <span class="user-badge" id="display-user-role">Verified Citizen</span>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn-logout" id="logout-btn" title="Sign out of portal">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                            <span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Body: Shows Welcome & 5 Areas ONLY -->
+        <div class="main-body-container">
+            <!-- Hero Welcome Section -->
+            <section class="welcome-hero-card">
+                <div class="hero-decorative-circle hero-circle-1"></div>
+                <div class="hero-decorative-circle hero-circle-2"></div>
+                <div class="hero-content">
+                    <div class="welcome-pill">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Citizen Portal Live &bull; Active Neighborhood Network</span>
+                    </div>
+                    <h1 class="welcome-headline">
+                        Welcome to Smart City Tumakuru
+                    </h1>
+                    <h2 class="welcome-kannada-headline">
+                        ಸ್ಮಾರ್ಟ್ ಸಿಟಿ ತುಮಕೂರಿಗೆ ಆತ್ಮೀಯ ಸ್ವಾಗತ
+                    </h2>
+                    <p class="welcome-description">
+                        Explore essential neighborhood amenities and public utilities across 5 surrounding prime zones: 
+                        <strong>Sira Gate</strong>, <strong>SS Puram</strong>, <strong>Vinayaka Nagara</strong>, 
+                        <strong>Bhadramma Circle</strong>, and <strong>Yallapura</strong>. Click on any area below to open its facilities on the next page.
+                    </p>
+
+                    <!-- Quick City Quick Metrics -->
+                    <div class="city-metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-icon icon-area"><i class="fa-solid fa-location-dot"></i></div>
+                            <div class="metric-info">
+                                <span class="metric-number">5</span>
+                                <span class="metric-label">Surrounding Areas</span>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon icon-facility"><i class="fa-solid fa-building-columns"></i></div>
+                            <div class="metric-info">
+                                <span class="metric-number">7</span>
+                                <span class="metric-label">Facility Categories</span>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon icon-centers"><i class="fa-solid fa-hospital-user"></i></div>
+                            <div class="metric-info">
+                                <span class="metric-number" id="total-facilities-count">50+</span>
+                                <span class="metric-label">Verified Centers</span>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon icon-emergency"><i class="fa-solid fa-shield-heart"></i></div>
+                            <div class="metric-info">
+                                <span class="metric-number">108 / 112</span>
+                                <span class="metric-label">Emergency Helpline</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5 SURROUNDING AREAS SECTION (ONLY AREAS ON THIS PAGE) -->
+            <section class="areas-section" id="areas-section">
+                <div class="section-header-row">
+                    <div>
+                        <div class="section-tag">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                            <span>Select An Area &bull; Step 1 of 2</span>
+                        </div>
+                        <h2 class="section-title">
+                            Surrounding 5 Key Areas in Tumakuru
+                        </h2>
+                        <p class="section-subtitle">
+                            View the 5 areas one by one or click any area card below to open its facilities on the next separate page.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- One-by-One Area Spotlight Card (Sequential View) -->
+                <div class="area-spotlight-wrapper" id="area-spotlight-wrapper">
+                    <div class="spotlight-card">
+                        <div class="spotlight-top">
+                            <div class="spotlight-step-badge" id="spotlight-step-badge">
+                                <i class="fa-solid fa-compass"></i> Area 1 of 5
+                            </div>
+                            <div class="spotlight-pincode" id="spotlight-pincode">PIN: 572106</div>
+                        </div>
+                        <div class="spotlight-main">
+                            <h3 class="spotlight-title" id="spotlight-title">Sira Gate</h3>
+                            <div class="spotlight-kannada" id="spotlight-kannada">ಶಿರಾ ಗೇಟ್</div>
+                            <p class="spotlight-desc" id="spotlight-desc">Strategic entrance connecting Tumakuru to NH-48 and North Karnataka, known for bustling markets, transit hubs, and healthcare centers.</p>
+                        </div>
+                        <div class="spotlight-footer">
+                            <div class="spotlight-nav-controls">
+                                <button type="button" class="btn-spotlight-nav" id="spotlight-prev-btn" title="Previous Area">
+                                    <i class="fa-solid fa-arrow-left"></i> Previous
+                                </button>
+                                <div class="spotlight-dots" id="spotlight-dots">
+                                    <!-- 5 indicator dots -->
+                                </div>
+                                <button type="button" class="btn-spotlight-nav" id="spotlight-next-btn" title="Next Area">
+                                    Next <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+                            <button type="button" class="btn-primary btn-spotlight-action" id="spotlight-action-btn">
+                                <i class="fa-solid fa-arrow-right"></i> <span>Open Sira Gate Facilities &rarr;</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-heading-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <h4>Or Explore the 5 Areas Below:</h4>
+                    <div class="view-mode-toggle-group">
+                        <button type="button" class="btn-view-toggle active" id="btn-areas-cards-view">
+                            <i class="fa-solid fa-border-all"></i> Areas Grid
+                        </button>
+                        <button type="button" class="btn-view-toggle" id="btn-areas-map-view">
+                            <i class="fa-solid fa-map-location-dot"></i> Open Full Map Page →
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5 Areas Card Grid -->
+                <div class="areas-grid" id="areas-grid">
+                    <!-- Populated dynamically from data.js -->
+                </div>
+
+                <!-- Interactive Tumakuru City Overview Map -->
+                <div class="city-overview-map-wrapper hidden" id="city-overview-map-wrapper">
+                    <div class="map-header-bar">
+                        <div class="map-header-info">
+                            <i class="fa-solid fa-map-marked-alt"></i>
+                            <span>Tumakuru City Geographic Map &mdash; 5 Surrounding Neighborhoods</span>
+                        </div>
+                        <span class="map-hint-pill"><i class="fa-solid fa-hand-pointer"></i> Click any area marker to open its facilities</span>
+                    </div>
+                    <div id="city-map-container" class="leaflet-map-canvas"></div>
+                </div>
+            </section>
+
+            <!-- Tumakuru Smart City Helplines Strip -->
+            <section class="helpline-strip">
+                <div class="helpline-header">
+                    <i class="fa-solid fa-headset"></i>
+                    <div>
+                        <h3>Smart City Tumakuru Emergency & Citizen Assistance Directory</h3>
+                        <p>Instant phone connectivity for immediate urban, medical, and civic support</p>
+                    </div>
+                </div>
+                <div class="helpline-grid">
+                    <div class="helpline-item">
+                        <div class="helpline-icon bg-red"><i class="fa-solid fa-truck-medical"></i></div>
+                        <div>
+                            <span class="helpline-name">Ambulance & Trauma</span>
+                            <a href="tel:108" class="helpline-number">108</a>
+                        </div>
+                    </div>
+                    <div class="helpline-item">
+                        <div class="helpline-icon bg-blue"><i class="fa-solid fa-shield"></i></div>
+                        <div>
+                            <span class="helpline-name">Police Control Room</span>
+                            <a href="tel:112" class="helpline-number">112 / 0816-2272222</a>
+                        </div>
+                    </div>
+                    <div class="helpline-item">
+                        <div class="helpline-icon bg-orange"><i class="fa-solid fa-fire-extinguisher"></i></div>
+                        <div>
+                            <span class="helpline-name">Fire & Rescue</span>
+                            <a href="tel:101" class="helpline-number">101</a>
+                        </div>
+                    </div>
+                    <div class="helpline-item">
+                        <div class="helpline-icon bg-emerald"><i class="fa-solid fa-building-ngo"></i></div>
+                        <div>
+                            <span class="helpline-name">City Corporation (CC)</span>
+                            <a href="tel:08162278453" class="helpline-number">0816-2278453</a>
+                        </div>
+                    </div>
+                    <div class="helpline-item">
+                        <div class="helpline-icon bg-purple"><i class="fa-solid fa-bolt"></i></div>
+                        <div>
+                            <span class="helpline-name">BESCOM Electricity</span>
+                            <a href="tel:1912" class="helpline-number">1912</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Footer for First Page -->
+        <footer class="app-footer">
+            <div class="footer-container">
+                <div class="footer-col brand-col">
+                    <div class="footer-brand">
+                        <i class="fa-solid fa-city"></i>
+                        <span>Smart City Tumakuru Urban Mission</span>
+                    </div>
+                    <p>
+                        Developed under the Smart Cities Mission & Directorate of Municipal Administration, Tumakuru, Karnataka.
+                    </p>
+                </div>
+                <div class="footer-col">
+                    <h4>Covered Neighborhoods</h4>
+                    <ul>
+                        <li><a href="javascript:void(0)" onclick="window.app && window.app.navigateToArea('sira-gate')">1. Sira Gate (ಶಿರಾ ಗೇಟ್)</a></li>
+                        <li><a href="javascript:void(0)" onclick="window.app && window.app.navigateToArea('ss-puram')">2. SS Puram (ಎಸ್.ಎಸ್. ಪುರಂ)</a></li>
+                        <li><a href="javascript:void(0)" onclick="window.app && window.app.navigateToArea('vinayaka-nagara')">3. Vinayaka Nagara (ವಿನಾಯಕ ನಗರ)</a></li>
+                        <li><a href="javascript:void(0)" onclick="window.app && window.app.navigateToArea('bhadramma-circle')">4. Bhadramma Circle (ಭದ್ರಮ್ಮ ಸರ್ಕಲ್)</a></li>
+                        <li><a href="javascript:void(0)" onclick="window.app && window.app.navigateToArea('yallapura')">5. Yallapura (ಯಲ್ಲಾಪುರ)</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Public Facility Categories</h4>
+                    <ul>
+                        <li><i class="fa-solid fa-graduation-cap"></i> Schools & Education</li>
+                        <li><i class="fa-solid fa-hospital"></i> Hospitals & Healthcare</li>
+                        <li><i class="fa-solid fa-envelope-open-text"></i> Post Offices</li>
+                        <li><i class="fa-solid fa-pills"></i> Medicals & Pharmacies</li>
+                        <li><i class="fa-solid fa-shield-halved"></i> Police & Public Safety</li>
+                        <li><i class="fa-solid fa-building-columns"></i> Banks & ATMs</li>
+                        <li><i class="fa-solid fa-tree"></i> Parks & Recreation</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Smart City Tumakuru Portal. All Public Amenities Verified.</p>
+                <div class="footer-sub-links">
+                    <span>Government of Karnataka</span> &bull; 
+                    <span>Tumakuru City Corporation</span>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 3: SEPARATE SECOND PAGE - ONLY FACILITIES OF CLICKED AREA -->
+    <!-- ============================================================== -->
+    <main id="page-facilities" class="app-page">
+        <!-- Top App Navigation Bar with Back Button -->
+        <header class="app-navbar">
+            <div class="nav-container">
+                <div class="nav-brand">
+                    <!-- Back Button in Navbar -->
+                    <button type="button" class="btn-nav-back" id="nav-back-to-areas-btn" title="Go back to Areas page">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>&larr; Back to Areas</span>
+                    </button>
+                    <div class="nav-titles" style="margin-left: 12px;">
+                        <div class="brand-title-group">
+                            <span class="brand-main" id="nav-facility-area-name">Sira Gate</span>
+                            <span class="brand-kannada" id="nav-facility-area-kannada">ಶಿರಾ ಗೇಟ್</span>
+                        </div>
+                        <span class="brand-sub">Area Public Facilities View</span>
+                    </div>
+                </div>
+
+                <!-- Global Search & Navigation Controls -->
+                <div class="nav-controls">
+                    <div class="nav-search-box">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input 
+                            type="text" 
+                            id="global-search-input" 
+                            placeholder="Search schools, hospitals, post, medicals, police..." 
+                            aria-label="Search city facilities"
+                        >
+                        <button type="button" class="clear-search-btn" id="clear-search-btn" title="Clear search">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <!-- User Profile & Session Menu -->
+                    <div class="user-session-menu">
+                        <button type="button" class="btn-logout" id="logout-btn-2" title="Sign out of portal">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                            <span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Body: Shows Facilities for the Clicked Area ONLY -->
+        <div class="main-body-container">
+
+            <!-- Breadcrumb Navigation Bar -->
+            <div class="page-breadcrumb-bar">
+                <div class="breadcrumb-trail">
+                    <a href="javascript:void(0)" onclick="window.app && window.app.showAreasPage()" style="color: var(--primary); text-decoration: none; font-weight: 700;">
+                        <i class="fa-solid fa-house"></i> Tumakuru Areas (Page 1)
+                    </a>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+                    <span id="breadcrumb-current-area">Sira Gate</span>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+                    <strong>Public Facilities (Page 2)</strong>
+                </div>
+
+                <button type="button" class="btn-breadcrumb-back" id="breadcrumb-back-btn">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back to 5 Areas</span>
+                </button>
+            </div>
+
+            <!-- Area Context Banner -->
+            <div class="selected-area-banner" id="selected-area-banner">
+                <div class="selected-area-details">
+                    <div class="area-badge-cluster">
+                        <span class="active-pulse-badge">
+                            <span class="pulse-dot"></span> Currently Viewing Facilities
+                        </span>
+                        <span class="area-pincode-badge" id="current-area-pincode">PIN: 572106</span>
+                    </div>
+                    <h2 class="current-area-name" id="current-area-title">
+                        Sira Gate
+                    </h2>
+                    <h3 class="current-area-kannada" id="current-area-kannada">
+                        ಶಿರಾ ಗೇಟ್
+                    </h3>
+                    <p class="current-area-desc" id="current-area-desc">
+                        Northern gateway and prominent commerce, transport, and public service corridor.
+                    </p>
+                </div>
+
+                <!-- Fast Area Quick Switcher Pills -->
+                <div class="area-switcher-pills" id="area-switcher-pills">
+                    <!-- Populated by JS for rapid switching -->
+                </div>
+            </div>
+
+            <!-- Filter Controls Bar -->
+            <div class="filter-controls-card">
+                <div class="categories-filter-wrapper">
+                    <div class="category-tabs-scroll" id="category-tabs">
+                        <!-- Populated dynamically with All, Schools, Hospitals, Post, Medicals, Police, Banks, Parks -->
+                    </div>
+                </div>
+
+                <!-- Secondary filter utilities -->
+                <div class="filter-utility-bar">
+                    <div class="filter-status-info">
+                        <span id="facilities-results-count">Showing Facilities</span>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                        <div class="view-mode-toggle-group">
+                            <button type="button" class="btn-view-toggle active" id="btn-facilities-cards-view">
+                                <i class="fa-solid fa-table-cells-large"></i> Cards View
+                            </button>
+                            <button type="button" class="btn-view-toggle" id="btn-facilities-map-view">
+                                <i class="fa-solid fa-map-location-dot"></i> Open Full Map Page →
+                            </button>
+                        </div>
+
+                        <div class="filter-toggles">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-24x7-filter">
+                                <span class="slider"></span>
+                                <span class="toggle-label"><i class="fa-solid fa-clock"></i> 24x7 / Open Now Only</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Facilities Cards Grid -->
+            <div class="facilities-grid" id="facilities-grid">
+                <!-- Dynamic facility cards rendered here -->
+            </div>
+
+            <!-- Interactive Facilities Map Container (Toggled via Map View) -->
+            <div class="facilities-map-wrapper hidden" id="facilities-map-wrapper">
+                <div class="map-header-bar">
+                    <div class="map-header-info">
+                        <i class="fa-solid fa-map-pin"></i>
+                        <span id="map-area-name-label">Interactive Map of Facilities</span>
+                    </div>
+                    <button type="button" class="btn-map-control" id="btn-recenter-facilities-map">
+                        <i class="fa-solid fa-crosshairs"></i> Recenter Map
+                    </button>
+                </div>
+                <div id="facilities-map-container" class="leaflet-map-canvas"></div>
+                <div class="map-legend-bar">
+                    <span class="legend-title"><i class="fa-solid fa-layer-group"></i> Facility Legend:</span>
+                    <span class="legend-item"><span class="legend-color-dot" style="background: #2563eb;"></span> Schools</span>
+                    <span class="legend-item"><span class="legend-color-dot" style="background: #dc2626;"></span> Hospitals</span>
+                    <span class="legend-item"><span class="legend-color-dot" style="background: #ea580c;"></span> Post Offices</span>
+                    <span class="legend-item"><span class="legend-color-dot" style="background: #059669;"></span> Medicals</span>
+                    <span class="legend-item"><span class="legend-color-dot" style="background: #1e40af;"></span> Police</span>
+                    <span class="legend-item"><span class="legend-color-dot" style="background: #b45309;"></span> Banks</span>
+                    <span class="legend-item"><span class="legend-color-dot" style="background: #16a34a;"></span> Parks</span>
+                </div>
+            </div>
+
+            <!-- Empty State for Search or No Matches -->
+            <div class="empty-state-card hidden" id="empty-state-card">
+                <div class="empty-icon"><i class="fa-solid fa-magnifying-glass-location"></i></div>
+                <h3>No Facilities Found</h3>
+                <p id="empty-state-msg">No facilities matched your selected category or search filter.</p>
+                <button type="button" class="btn-primary" id="reset-filters-btn">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> Reset All Filters
+                </button>
+            </div>
+
+            <!-- Bottom Return to Areas Button -->
+            <div class="bottom-return-bar">
+                <button type="button" class="btn-large-return" id="bottom-return-btn">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>&larr; Back to 5 Areas Overview (Page 1)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer for Facilities Page -->
+        <footer class="app-footer">
+            <div class="footer-bottom">
+                <p>&copy; 2026 Smart City Tumakuru Portal. All Public Amenities Verified.</p>
+                <div class="footer-sub-links">
+                    <a href="javascript:void(0)" onclick="window.app && window.app.showAreasPage()" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
+                        &larr; Return to All 5 Areas
+                    </a>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <!-- ============================================================== -->
+    <!-- FACILITY DETAIL MODAL POPUP                                    -->
+    <!-- ============================================================== -->
+    <div class="modal-backdrop hidden" id="facility-modal-backdrop" role="dialog" aria-modal="true">
+        <div class="facility-modal-dialog">
+            <button type="button" class="modal-close-btn" id="modal-close-btn" title="Close details">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="modal-body" id="modal-body-content">
+                <!-- Dynamically filled with detailed facility card info -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 4: SEPARATE THIRD PAGE - FULL INTERACTIVE MAP            -->
+    <!-- ============================================================== -->
+    <main id="page-map" class="app-page">
+        <!-- Top Navbar with Back Button -->
+        <header class="app-navbar">
+            <div class="nav-container">
+                <div class="nav-brand">
+                    <button type="button" class="btn-nav-back" id="map-page-back-btn" title="Go back">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span id="map-page-back-label">&larr; Back</span>
+                    </button>
+                    <div class="nav-titles" style="margin-left: 12px;">
+                        <div class="brand-title-group">
+                            <span class="brand-main">Full Facilities Map</span>
+                            <span class="brand-kannada">ಸಮ್ಪೂರ್ಣ ಸೌಲಭ್ಯ ನಕ್ಷೆ</span>
+                        </div>
+                        <span class="brand-sub" id="map-page-subtitle">All 5 Areas &bull; All Facilities</span>
+                    </div>
+                </div>
+                <div class="nav-controls">
+                    <button type="button" class="btn-logout" id="logout-btn-map" title="Sign out of portal">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Map Page Layout -->
+        <div class="map-page-layout">
+            <!-- Controls Bar: Area Selector + Category Filter -->
+            <div class="map-page-controls-bar">
+                <!-- Row 1: Area Selector -->
+                <div class="map-area-selector-group">
+                    <span class="filter-group-label"><i class="fa-solid fa-location-dot"></i> Area:</span>
+                    <div class="map-area-pills" id="map-area-pills">
+                        <button type="button" class="btn-map-area-pill active" data-area-id="all">
+                            <i class="fa-solid fa-globe"></i> All 5 Areas
+                        </button>
+                        <!-- JS fills remaining 5 area pills -->
+                    </div>
+                </div>
+
+                <!-- Row 2: Category Filter + Utility -->
+                <div class="map-page-utility-row">
+                    <div class="map-area-selector-group">
+                        <span class="filter-group-label"><i class="fa-solid fa-layer-group"></i> Category:</span>
+                        <div class="map-area-pills" id="map-category-pills">
+                            <!-- JS fills category pills -->
+                        </div>
+                    </div>
+                    <div class="map-utility-btns">
+                        <span class="map-facilities-counter" id="map-facilities-counter">Loading...</span>
+                        <button type="button" class="btn-map-control" id="btn-recenter-full-map">
+                            <i class="fa-solid fa-crosshairs"></i> Recenter
+                        </button>
+                        <button type="button" class="btn-map-control" id="btn-toggle-map-sidebar">
+                            <i class="fa-solid fa-list"></i> Facility List
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Stage: Full Map Canvas + Sidebar -->
+            <div class="map-page-main-stage">
+                <div id="dedicated-full-map" class="dedicated-full-map-canvas"></div>
+
+                <!-- Collapsible Facility Sidebar -->
+                <div class="map-facilities-sidebar" id="map-facilities-sidebar">
+                    <div class="sidebar-header">
+                        <h4><i class="fa-solid fa-list-check"></i> <span id="sidebar-title">All Facilities</span></h4>
+                        <button type="button" class="close-sidebar-btn" id="close-map-sidebar-btn" title="Close list">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar-list-content" id="sidebar-list-content">
+                        <!-- JS fills facility list items -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Legend Bar -->
+            <div class="map-legend-bar" style="padding: 8px 20px; background: rgba(255,255,255,0.95); border-top: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 0.78rem;">
+                <span class="legend-title"><i class="fa-solid fa-layer-group"></i> Legend:</span>
+                <span class="legend-item"><span class="legend-color-dot" style="background: #2563eb;"></span> Schools</span>
+                <span class="legend-item"><span class="legend-color-dot" style="background: #dc2626;"></span> Hospitals</span>
+                <span class="legend-item"><span class="legend-color-dot" style="background: #ea580c;"></span> Post Offices</span>
+                <span class="legend-item"><span class="legend-color-dot" style="background: #059669;"></span> Medicals</span>
+                <span class="legend-item"><span class="legend-color-dot" style="background: #1e40af;"></span> Police</span>
+                <span class="legend-item"><span class="legend-color-dot" style="background: #b45309;"></span> Banks</span>
+                <span class="legend-item"><span class="legend-color-dot" style="background: #16a34a;"></span> Parks</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
