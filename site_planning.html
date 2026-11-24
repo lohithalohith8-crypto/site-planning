@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Smart City Site Planning & Cost Estimation System</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Rajdhani:wght@500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #0f172a; color: #e2e8f0; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #1e293b; }
+  ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 3px; }
+  .nav-btn { transition: all 0.2s; }
+  .nav-btn.active { background: linear-gradient(135deg,#3b82f6,#1d4ed8); box-shadow: 0 4px 15px rgba(59,130,246,0.4); }
+  .card { background: linear-gradient(135deg,#1e293b,#0f172a); border: 1px solid #334155; border-radius: 16px; }
+  .kpi { background: linear-gradient(135deg,#1e293b,#162032); border: 1px solid #1e40af30; border-radius: 14px; padding: 20px; }
+  .btn-primary { background: linear-gradient(135deg,#3b82f6,#1d4ed8); border-radius: 8px; padding: 10px 20px; font-weight:600; cursor:pointer; transition:all 0.2s; color:#fff; border:none; }
+  .btn-primary:hover { transform:translateY(-1px); box-shadow:0 4px 15px rgba(59,130,246,0.4); }
+  .btn-green { background: linear-gradient(135deg,#10b981,#059669); border-radius: 8px; padding: 10px 20px; font-weight:600; cursor:pointer; transition:all 0.2s; color:#fff; border:none; }
+  .btn-green:hover { transform:translateY(-1px); box-shadow:0 4px 15px rgba(16,185,129,0.4); }
+  .btn-orange { background: linear-gradient(135deg,#f59e0b,#d97706); border-radius: 8px; padding: 10px 20px; font-weight:600; cursor:pointer; transition:all 0.2s; color:#fff; border:none; }
+  .btn-orange:hover { transform:translateY(-1px); box-shadow:0 4px 15px rgba(245,158,11,0.4); }
+  .btn-red { background: linear-gradient(135deg,#ef4444,#dc2626); border-radius: 8px; padding: 10px 20px; font-weight:600; cursor:pointer; transition:all 0.2s; color:#fff; border:none; }
+  .btn-red:hover { transform:translateY(-1px); }
+  .input-field { background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px 14px; color:#e2e8f0; width:100%; outline:none; transition:border 0.2s; }
+  .input-field:focus { border-color:#3b82f6; }
+  .plot-card { border-radius:12px; padding:14px; cursor:pointer; transition:all 0.2s; border:2px solid transparent; }
+  .plot-card:hover { transform:translateY(-2px); }
+  .plot-card.selected { border-color:#3b82f6; box-shadow:0 0 20px rgba(59,130,246,0.3); }
+  .blueprint-canvas { background: #003080; border-radius: 12px; }
+  canvas { display:block; }
+  .tab-content { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .gradient-text { background: linear-gradient(135deg,#60a5fa,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .section-title { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.5rem; color:#60a5fa; letter-spacing:1px; }
+  .info-badge { background:#1e3a5f; border:1px solid #3b82f6; border-radius:6px; padding:4px 10px; font-size:12px; color:#93c5fd; }
+  select.input-field option { background:#1e293b; }
+  .range-slider { -webkit-appearance:none; width:100%; height:6px; border-radius:3px; background:#334155; outline:none; }
+  .range-slider::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#3b82f6; cursor:pointer; }
+  .stat-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #1e293b; }
+  .cost-table th { background:#1e3a5f; color:#93c5fd; padding:10px 14px; text-align:left; font-size:13px; }
+  .cost-table td { padding:10px 14px; border-bottom:1px solid #1e293b; font-size:13px; }
+  .cost-table tr:hover td { background:#1e293b40; }
+  .legend-dot { width:12px; height:12px; border-radius:50%; display:inline-block; margin-right:6px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const PLOT_TYPES = { RESIDENTIAL:'Residential', COMMERCIAL:'Commercial', PARK:'Park/Garden', ROAD:'Road' };
+const STATUS = { AVAILABLE:'Available', BOOKED:'Booked', RESERVED:'Reserved' };
+const STATUS_COLORS = { Available:'#10b981', Booked:'#ef4444', Reserved:'#f59e0b' };
+const PLOT_COLORS = { Residential:'#1e40af', Commercial:'#7c3aed', 'Park/Garden':'#065f46', Road:'#374151' };
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function fmtNum(n){ return Number(n||0).toLocaleString('en-IN'); }
+function fmtCur(n){ return '₹'+fmtNum(Math.round(n||0)); }
+function fmtSqft(n){ return fmtNum(Math.round(n||0))+' sq.ft'; }
+
+// ─── GENERATE PLOTS ──────────────────────────────────────────────────────────
+function generatePlots(landL, landW, plotCount, roadW, parkRatio, plotType){
+  const plots = [];
+  const parkArea = { x: landL*(1-parkRatio), y: 0, w: landL*parkRatio, h: landW*0.5, type:'Park' };
+  const usableL = landL*(1-parkRatio) - roadW;
+  const usableW = landW - roadW;
+  const cols = Math.ceil(Math.sqrt(plotCount * (usableL/usableW)));
+  const rows = Math.ceil(plotCount/cols);
+  const cellW = (usableL - roadW*(cols-1)) / cols;
+  const cellH = (usableW - roadW*(rows-1)) / rows;
+  let count = 0;
+  for(let r=0;r<rows&&count<plotCount;r++){
+    for(let c=0;c<cols&&count<plotCount;c++){
+      const x = c*(cellW+roadW) + roadW/2;
+      const y = r*(cellH+roadW) + roadW/2;
+      const sqft = Math.round(cellW*cellH);
+      const statuses = [STATUS.AVAILABLE,STATUS.AVAILABLE,STATUS.AVAILABLE,STATUS.BOOKED,STATUS.RESERVED];
+      plots.push({
+        id: count+1,
+        label: `P-${String(count+1).padStart(2,'0')}`,
+        x, y,
+        w: cellW, h: cellH,
+        sqft, sqftL: cellW, sqftW: cellH,
+        type: count%5===3?'Commercial':'Residential',
+        status: statuses[count%statuses.length],
+        facing: ['North','South','East','West'][count%4]
+      });
+      count++;
+    }
+  }
+  return { plots, parkArea, cols, rows, cellW, cellH };
+}
+
+// ─── CANVAS SITE LAYOUT ──────────────────────────────────────────────────────
+function SiteCanvas({ landL, landW, plotCount, roadW, parkRatio, zoom, selectedPlot, setSelectedPlot, showLabels }){
+  const canvasRef = useRef(null);
+  const [hoveredPlot, setHoveredPlot] = useState(null);
+  const { plots, parkArea, cellW, cellH } = generatePlots(landL, landW, plotCount, roadW, parkRatio);
+
+  const scale = useCallback(() => {
+    const BASE = 700;
+    return (BASE / Math.max(landL, landW)) * (zoom/100);
+  }, [landL, landW, zoom]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if(!canvas) return;
+    const sc = scale();
+    const PAD = 60;
+    canvas.width  = landL*sc + PAD*2;
+    canvas.height = landW*sc + PAD*2;
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#0d1b2a';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // Grid
+    ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth=0.5;
+    const gridSz = 50*sc/100;
+    for(let gx=0;gx<canvas.width;gx+=gridSz){ ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,canvas.height);ctx.stroke(); }
+    for(let gy=0;gy<canvas.height;gy+=gridSz){ ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(canvas.width,gy);ctx.stroke(); }
+
+    // Land border
+    ctx.strokeStyle='#3b82f6'; ctx.lineWidth=3;
+    ctx.strokeRect(PAD, PAD, landL*sc, landW*sc);
+
+    // Road main (perimeter)
+    ctx.fillStyle='#374151';
+    const rw = roadW*sc;
+    // Top road
+    ctx.fillRect(PAD, PAD, landL*sc, rw);
+    // Bottom road
+    ctx.fillRect(PAD, PAD+landW*sc-rw, landL*sc, rw);
+    // Left road
+    ctx.fillRect(PAD, PAD, rw, landW*sc);
+    // Right road
+    ctx.fillRect(PAD+landL*sc-rw, PAD, rw, landW*sc);
+
+    // Road stripes
+    ctx.strokeStyle='#facc15'; ctx.lineWidth=1; ctx.setLineDash([10,10]);
+    ctx.beginPath(); ctx.moveTo(PAD, PAD+rw/2); ctx.lineTo(PAD+landL*sc, PAD+rw/2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(PAD, PAD+landW*sc-rw/2); ctx.lineTo(PAD+landL*sc, PAD+landW*sc-rw/2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Park
+    const pk = parkArea;
+    ctx.fillStyle='#064e3b';
+    ctx.fillRect(PAD+pk.x*sc, PAD+pk.y*sc, pk.w*sc, pk.h*sc);
+    ctx.strokeStyle='#10b981'; ctx.lineWidth=1.5;
+    ctx.strokeRect(PAD+pk.x*sc, PAD+pk.y*sc, pk.w*sc, pk.h*sc);
+    // Trees in park
+    const treeSpacing = 30*sc/100;
+    for(let tx=pk.x*sc+treeSpacing;tx<(pk.x+pk.w)*sc;tx+=treeSpacing){
+      for(let ty=pk.y*sc+treeSpacing;ty<(pk.y+pk.h)*sc;ty+=treeSpacing){
+        ctx.fillStyle='#15803d';
+        ctx.beginPath(); ctx.arc(PAD+tx,PAD+ty,4,0,Math.PI*2); ctx.fill();
+      }
+    }
+    if(showLabels){
+      ctx.fillStyle='#6ee7b7'; ctx.font=`bold ${Math.max(10,12*sc/100)}px Inter`;
+      ctx.textAlign='center';
+      ctx.fillText('PARK / GARDEN', PAD+(pk.x+pk.w/2)*sc, PAD+(pk.y+pk.h/2)*sc);
+    }
+
+    // Open space (bottom right)
+    ctx.fillStyle='#1a2e1a';
+    const osX = pk.x, osY = pk.h, osW = pk.w, osH = landW - pk.h;
+    ctx.fillRect(PAD+osX*sc, PAD+osY*sc, osW*sc, osH*sc);
+    ctx.strokeStyle='#166534'; ctx.lineWidth=1;
+    ctx.strokeRect(PAD+osX*sc, PAD+osY*sc, osW*sc, osH*sc);
+    if(showLabels){
+      ctx.fillStyle='#4ade80'; ctx.font=`bold ${Math.max(9,10*sc/100)}px Inter`;
+      ctx.textAlign='center';
+      ctx.fillText('OPEN SPACE', PAD+(osX+osW/2)*sc, PAD+(osY+osH/2)*sc);
+    }
+
+    // Plots
+    plots.forEach(p => {
+      const px = PAD+p.x*sc, py = PAD+p.y*sc, pw = p.w*sc, ph = p.h*sc;
+      const isSelected = selectedPlot?.id === p.id;
+      const isHovered = hoveredPlot?.id === p.id;
+
+      // Fill color by status
+      const fillMap = { Available:'#1e3a5f', Booked:'#3b1515', Reserved:'#3b2a0a' };
+      ctx.fillStyle = fillMap[p.status] || '#1e3a5f';
+      ctx.fillRect(px,py,pw,ph);
+
+      // Border
+      const borderMap = { Available:'#3b82f6', Booked:'#ef4444', Reserved:'#f59e0b' };
+      ctx.strokeStyle = isSelected ? '#fff' : (isHovered ? '#a5f3fc' : borderMap[p.status]);
+      ctx.lineWidth = isSelected ? 3 : 1.5;
+      ctx.strokeRect(px,py,pw,ph);
+
+      // Corner marks (hatch for commercial)
+      if(p.type==='Commercial'){
+        ctx.strokeStyle='#7c3aed40'; ctx.lineWidth=0.5;
+        for(let i=5;i<pw;i+=8){ ctx.beginPath();ctx.moveTo(px,py+i);ctx.lineTo(px+i,py);ctx.stroke(); }
+      }
+
+      if(showLabels && pw > 20 && ph > 20){
+        const fsize = Math.max(8, Math.min(12, pw/8));
+        ctx.fillStyle = isSelected ? '#fff' : '#93c5fd';
+        ctx.font = `bold ${fsize}px Inter`;
+        ctx.textAlign='center';
+        ctx.fillText(p.label, px+pw/2, py+ph/2 - (fsize));
+        ctx.fillStyle='#64748b'; ctx.font=`${fsize*0.85}px Inter`;
+        ctx.fillText(`${Math.round(p.sqftL)}'×${Math.round(p.sqftW)}'`, px+pw/2, py+ph/2+2);
+        ctx.fillText(`${fmtNum(p.sqft)} sqft`, px+pw/2, py+ph/2+(fsize+2));
+      }
+    });
+
+    // Entrance
+    ctx.fillStyle='#fbbf24';
+    ctx.fillRect(PAD+landL*sc/2-20, PAD+landW*sc, 40, 20);
+    ctx.fillStyle='#0d1b2a'; ctx.font='bold 9px Inter'; ctx.textAlign='center';
+    ctx.fillText('ENTRANCE', PAD+landL*sc/2, PAD+landW*sc+13);
+
+    // North Arrow
+    const nx = PAD+landL*sc+30, ny = PAD+30;
+    ctx.strokeStyle='#60a5fa'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(nx,ny+20); ctx.lineTo(nx,ny-20); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(nx,ny-20); ctx.lineTo(nx-6,ny-6); ctx.lineTo(nx+6,ny-6); ctx.closePath();
+    ctx.fillStyle='#60a5fa'; ctx.fill();
+    ctx.fillStyle='#60a5fa'; ctx.font='bold 10px Inter'; ctx.textAlign='center';
+    ctx.fillText('N', nx, ny+32);
+
+    // Dimension labels
+    if(showLabels){
+      ctx.fillStyle='#94a3b8'; ctx.font='11px Inter'; ctx.textAlign='center';
+      ctx.fillText(`${fmtNum(landL)} ft`, PAD+landL*sc/2, PAD-10);
+      ctx.save(); ctx.translate(PAD-20, PAD+landW*sc/2); ctx.rotate(-Math.PI/2);
+      ctx.fillText(`${fmtNum(landW)} ft`, 0, 0); ctx.restore();
+    }
+  }, [landL, landW, plotCount, roadW, parkRatio, zoom, selectedPlot, hoveredPlot, showLabels, plots, parkArea, scale]);
+
+  const getPlotAt = (cx, cy) => {
+    const sc = scale();
+    const PAD = 60;
+    const lx = (cx-PAD)/sc, ly = (cy-PAD)/sc;
+    return plots.find(p => lx>=p.x && lx<=p.x+p.w && ly>=p.y && ly<=p.y+p.h) || null;
+  };
+
+  return (
+    <div style={{overflowX:'auto', overflowY:'auto', maxHeight:'520px'}}>
+      <canvas
+        ref={canvasRef}
+        style={{cursor:'crosshair', maxWidth:'100%'}}
+        onClick={e => {
+          const r = e.currentTarget.getBoundingClientRect();
+          const p = getPlotAt(e.clientX-r.left, e.clientY-r.top);
+          setSelectedPlot(p);
+        }}
+        onMouseMove={e => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setHoveredPlot(getPlotAt(e.clientX-r.left, e.clientY-r.top));
+        }}
+        onMouseLeave={()=>setHoveredPlot(null)}
+      />
+    </div>
+  );
+}
+
+// ─── BLUEPRINT CANVAS ─────────────────────────────────────────────────────────
+function BlueprintCanvas({ landL, landW, plotCount, roadW, parkRatio, zoom }){
+  const canvasRef = useRef(null);
+  const { plots, parkArea } = generatePlots(landL, landW, plotCount, roadW, parkRatio);
+
+  useEffect(()=>{
+    const canvas = canvasRef.current; if(!canvas) return;
+    const sc = (600/Math.max(landL,landW))*(zoom/100);
+    const PAD = 80, TH = 60;
+    canvas.width  = landL*sc + PAD*2 + 100;
+    canvas.height = landW*sc + PAD*2 + TH + 80;
+    const ctx = canvas.getContext('2d');
+
+    // Blueprint BG
+    ctx.fillStyle='#003380'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // Grid
+    ctx.strokeStyle='#ffffff15'; ctx.lineWidth=0.5;
+    const gs = 40;
+    for(let gx=0;gx<canvas.width;gx+=gs){ ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,canvas.height);ctx.stroke(); }
+    for(let gy=0;gy<canvas.height;gy+=gs){ ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(canvas.width,gy);ctx.stroke(); }
+
+    // Title block
+    ctx.strokeStyle='#80aaff'; ctx.lineWidth=2;
+    ctx.strokeRect(10,canvas.height-TH-10,canvas.width-20,TH);
+    ctx.fillStyle='#80aaff'; ctx.font='bold 16px Rajdhani,sans-serif'; ctx.textAlign='left';
+    ctx.fillText('SMART CITY SITE PLANNING — LAYOUT BLUEPRINT', 20, canvas.height-TH+20);
+    ctx.font='11px Inter'; ctx.fillStyle='#aac4ff';
+    ctx.fillText(`Total Area: ${fmtNum(landL*landW)} sq.ft  |  Plots: ${plotCount}  |  Road Width: ${roadW} ft  |  Scale: 1:200`, 20, canvas.height-TH+38);
+    ctx.textAlign='right';
+    ctx.fillText(`Rev 1.0  |  ${new Date().toLocaleDateString('en-IN')}`, canvas.width-20, canvas.height-TH+20);
+    ctx.fillText('Engineer: Smart City Planning System', canvas.width-20, canvas.height-TH+38);
+
+    // Land outer
+    ctx.strokeStyle='#80c8ff'; ctx.lineWidth=3;
+    ctx.strokeRect(PAD,TH+PAD/2, landL*sc, landW*sc);
+
+    // Roads
+    ctx.fillStyle='#ffffff20';
+    const rw=roadW*sc;
+    ctx.fillRect(PAD,TH+PAD/2,landL*sc,rw);
+    ctx.fillRect(PAD,TH+PAD/2+landW*sc-rw,landL*sc,rw);
+    ctx.fillRect(PAD,TH+PAD/2,rw,landW*sc);
+    ctx.fillRect(PAD+landL*sc-rw,TH+PAD/2,rw,landW*sc);
+    ctx.strokeStyle='#ffff4040'; ctx.lineWidth=0.8; ctx.setLineDash([8,8]);
+    ctx.beginPath();ctx.moveTo(PAD,TH+PAD/2+rw/2);ctx.lineTo(PAD+landL*sc,TH+PAD/2+rw/2);ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Park
+    const pk=parkArea;
+    ctx.fillStyle='#003d1a'; ctx.strokeStyle='#40ff80'; ctx.lineWidth=1.5;
+    ctx.fillRect(PAD+pk.x*sc, TH+PAD/2+pk.y*sc, pk.w*sc, pk.h*sc);
+    ctx.strokeRect(PAD+pk.x*sc, TH+PAD/2+pk.y*sc, pk.w*sc, pk.h*sc);
+    // hatching park
+    ctx.strokeStyle='#40ff4040'; ctx.lineWidth=0.5;
+    for(let hx=0;hx<pk.w*sc;hx+=10){
+      ctx.beginPath();ctx.moveTo(PAD+pk.x*sc+hx,TH+PAD/2+pk.y*sc);ctx.lineTo(PAD+pk.x*sc,TH+PAD/2+pk.y*sc+hx);ctx.stroke();
+    }
+    ctx.fillStyle='#80ffaa'; ctx.font=`bold ${Math.max(9,11*sc/100)}px Inter`; ctx.textAlign='center';
+    ctx.fillText('PARK / GARDEN', PAD+(pk.x+pk.w/2)*sc, TH+PAD/2+(pk.y+pk.h/2)*sc+4);
+
+    // Plots
+    plots.forEach(p => {
+      const px=PAD+p.x*sc, py=TH+PAD/2+p.y*sc, pw=p.w*sc, ph=p.h*sc;
+      ctx.fillStyle='#001a3380';
+      ctx.fillRect(px,py,pw,ph);
+      ctx.strokeStyle= p.type==='Commercial'?'#c084fc':'#80c8ff';
+      ctx.lineWidth=1.2;
+      ctx.strokeRect(px,py,pw,ph);
+      if(pw>20&&ph>20){
+        const fz=Math.max(7,Math.min(11,pw/7));
+        ctx.fillStyle='#c0d8ff'; ctx.font=`bold ${fz}px Inter`; ctx.textAlign='center';
+        ctx.fillText(p.label,px+pw/2,py+ph/2-fz);
+        ctx.fillStyle='#8ab4ff'; ctx.font=`${fz*0.85}px Inter`;
+        ctx.fillText(`${Math.round(p.sqftL)}'×${Math.round(p.sqftW)}'`,px+pw/2,py+ph/2+3);
+      }
+    });
+
+    // Dimension lines
+    ctx.strokeStyle='#80aaff'; ctx.lineWidth=1; ctx.fillStyle='#80aaff'; ctx.font='11px Inter';
+    // Top dim
+    ctx.textAlign='center';
+    ctx.beginPath();ctx.moveTo(PAD,TH+10);ctx.lineTo(PAD+landL*sc,TH+10);ctx.stroke();
+    ctx.fillText(`${fmtNum(landL)} ft`,PAD+landL*sc/2,TH+8);
+    // Left dim
+    ctx.save();ctx.translate(PAD-20,TH+PAD/2+landW*sc/2);ctx.rotate(-Math.PI/2);
+    ctx.fillText(`${fmtNum(landW)} ft`,0,0);ctx.restore();
+
+    // North
+    const nx=PAD+landL*sc+40, ny=TH+PAD/2+30;
+    ctx.strokeStyle='#80c8ff'; ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(nx,ny+25);ctx.lineTo(nx,ny-25);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(nx,ny-25);ctx.lineTo(nx-7,ny-10);ctx.lineTo(nx+7,ny-10);ctx.closePath();
+    ctx.fillStyle='#80c8ff';ctx.fill();
+    ctx.font='bold 12px Inter';ctx.textAlign='center';ctx.fillText('N',nx,ny+40);
+
+    // Entrance
+    ctx.fillStyle='#ffcc44';
+    ctx.fillRect(PAD+landL*sc/2-25,TH+PAD/2+landW*sc,50,18);
+    ctx.fillStyle='#003380';ctx.font='bold 8px Inter';ctx.textAlign='center';
+    ctx.fillText('ENTRANCE',PAD+landL*sc/2,TH+PAD/2+landW*sc+12);
+
+    // Legend
+    const lx=PAD+landL*sc+10, ly=TH+PAD/2+80;
+    ctx.fillStyle='#80c8ff'; ctx.font='bold 11px Inter'; ctx.textAlign='left';
+    ctx.fillText('LEGEND',lx,ly);
+    [['#80c8ff','Residential Plot'],['#c084fc','Commercial Plot'],['#40ff80','Park/Garden'],['#ffcc44','Entrance']].forEach(([col,lbl],i)=>{
+      ctx.fillStyle=col; ctx.fillRect(lx,ly+15+i*18,12,10);
+      ctx.fillStyle='#aac4ff'; ctx.font='9px Inter'; ctx.fillText(lbl,lx+16,ly+23+i*18);
+    });
+  },[landL,landW,plotCount,roadW,parkRatio,zoom,plots,parkArea,scale]);
+
+  const scale = () => (600/Math.max(landL,landW))*(zoom/100);
+
+  const download = () => {
+    const a=document.createElement('a');
+    a.href=canvasRef.current.toDataURL('image/png');
+    a.download='site_blueprint.png'; a.click();
+  };
+  const printPDF = () => {
+    const img = canvasRef.current.toDataURL('image/png');
+    const w = window.open('','_blank');
+    w.document.write(`<html><body style="margin:0"><img src="${img}" style="width:100%"/></body></html>`);
+    w.document.close(); w.print();
+  };
+
+  return (
+    <div>
+      <div style={{overflowX:'auto', overflowY:'auto', maxHeight:'560px', background:'#001a40', borderRadius:'12px', padding:'8px'}}>
+        <canvas ref={canvasRef} style={{maxWidth:'100%'}}/>
+      </div>
+      <div className="flex gap-3 mt-4">
+        <button className="btn-primary" onClick={download}>⬇ Download PNG</button>
+        <button className="btn-orange" onClick={printPDF}>🖨 Print / PDF</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+function App(){
+  const [tab, setTab] = useState('dashboard');
+  const [landL, setLandL] = useState(500);
+  const [landW, setLandW] = useState(300);
+  const [plotCount, setPlotCount] = useState(20);
+  const [roadW, setRoadW] = useState(20);
+  const [parkRatio, setParkRatio] = useState(0.15);
+  const [pricePerSqft, setPricePerSqft] = useState(1500);
+  const [regPct, setRegPct] = useState(5);
+  const [devCharge, setDevCharge] = useState(50);
+  const [roadCost, setRoadCost] = useState(80);
+  const [miscCharge, setMiscCharge] = useState(2);
+  const [zoom, setZoom] = useState(100);
+  const [selectedPlot, setSelectedPlot] = useState(null);
+  const [showLabels, setShowLabels] = useState(true);
+  const [plotFilter, setPlotFilter] = useState('All');
+
+  const totalArea = landL * landW;
+  const { plots, parkArea } = generatePlots(landL, landW, plotCount, roadW, parkRatio);
+  const parkSqft = parkArea.w * parkArea.h;
+  const roadSqft = totalArea * 0.1;
+  const plotSqftTotal = plots.reduce((s,p)=>s+p.sqft,0);
+  const landCost = totalArea * pricePerSqft;
+  const regFee  = landCost * regPct / 100;
+  const devFee  = plotSqftTotal * devCharge;
+  const roadFee = roadSqft * roadCost;
+  const miscFee = landCost * miscCharge / 100;
+  const totalCost = landCost + regFee + devFee + roadFee + miscFee;
+  const availCount = plots.filter(p=>p.status==='Available').length;
+  const bookedCount = plots.filter(p=>p.status==='Booked').length;
+  const resrvCount  = plots.filter(p=>p.status==='Reserved').length;
+  const avgPlotSqft = plots.length ? Math.round(plotSqftTotal/plots.length) : 0;
+
+  const filteredPlots = plotFilter==='All' ? plots : plots.filter(p=>p.status===plotFilter);
+
+  const TABS = [
+    { id:'dashboard',   label:'🏙 Dashboard' },
+    { id:'layout',      label:'📐 Site Layout' },
+    { id:'cost',        label:'💰 Cost Estimation' },
+    { id:'blueprint',   label:'📋 Blueprint' },
+    { id:'plots',       label:'🏘 Plot Details' },
+    { id:'reports',     label:'📊 Reports' },
+  ];
+
+  // CSV export
+  const downloadCSV = () => {
+    const rows = [['Plot','Type','Status','Length(ft)','Width(ft)','Area(sqft)','Price(₹)','Facing']];
+    plots.forEach(p=>rows.push([p.label,p.type,p.status,Math.round(p.sqftL),Math.round(p.sqftW),p.sqft,Math.round(p.sqft*pricePerSqft),p.facing]));
+    const csv = rows.map(r=>r.join(',')).join('\n');
+    const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+    a.download='site_plan.csv'; a.click();
+  };
+
+  return (
+    <div style={{minHeight:'100vh'}}>
+      {/* ── HEADER ── */}
+      <div style={{background:'linear-gradient(135deg,#0f172a,#1e293b)', borderBottom:'1px solid #334155', padding:'0 24px'}}>
+        <div style={{maxWidth:1400,margin:'0 auto',display:'flex',alignItems:'center',justifyContent:'space-between',height:64}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={{width:40,height:40,background:'linear-gradient(135deg,#3b82f6,#7c3aed)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>🏙</div>
+            <div>
+              <div style={{fontFamily:'Rajdhani,sans-serif',fontWeight:700,fontSize:'1.15rem',color:'#60a5fa',letterSpacing:1}}>Smart City</div>
+              <div style={{fontSize:11,color:'#64748b',letterSpacing:2}}>SITE PLANNING & COST ESTIMATION</div>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            {TABS.map(t=>(
+              <button key={t.id} className={`nav-btn ${tab===t.id?'active':''}`}
+                onClick={()=>setTab(t.id)}
+                style={{padding:'8px 14px',borderRadius:8,border:'1px solid #334155',background:tab===t.id?'':'transparent',color:tab===t.id?'#fff':'#94a3b8',cursor:'pointer',fontSize:13,fontWeight:600}}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── CONTENT ── */}
+      <div style={{maxWidth:1400,margin:'0 auto',padding:'24px 24px'}}>
+
+        {/* ══ DASHBOARD ══ */}
+        {tab==='dashboard' && (
+          <div className="tab-content">
+            <div style={{marginBottom:24}}>
+              <div className="section-title">📊 Dashboard Overview</div>
+              <p style={{color:'#64748b',fontSize:13,marginTop:4}}>Smart City Land Planning — Live Statistics & Summary</p>
+            </div>
+
+            {/* KPI Row */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:16,marginBottom:24}}>
+              {[
+                { label:'Total Area',    val: fmtSqft(totalArea), icon:'📏', color:'#3b82f6' },
+                { label:'Total Plots',   val: plotCount,          icon:'🏘', color:'#8b5cf6' },
+                { label:'Available',     val: availCount,         icon:'✅', color:'#10b981' },
+                { label:'Booked',        val: bookedCount,        icon:'🔴', color:'#ef4444' },
+                { label:'Reserved',      val: resrvCount,         icon:'🟠', color:'#f59e0b' },
+                { label:'Land Cost',     val: fmtCur(landCost),   icon:'💰', color:'#06b6d4' },
+                { label:'Total Cost',    val: fmtCur(totalCost),  icon:'💎', color:'#ec4899' },
+                { label:'Avg Plot Area', val: fmtSqft(avgPlotSqft),icon:'📐',color:'#84cc16' },
+              ].map((k,i)=>(
+                <div key={i} className="kpi" style={{borderLeft:`3px solid ${k.color}`}}>
+                  <div style={{fontSize:22,marginBottom:4}}>{k.icon}</div>
+                  <div style={{fontSize:11,color:'#64748b',marginBottom:4,letterSpacing:1}}>{k.label.toUpperCase()}</div>
+                  <div style={{fontSize:16,fontWeight:700,color:'#e2e8f0'}}>{k.val}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Parameters + Mini Canvas */}
+            <div style={{display:'grid',gridTemplateColumns:'340px 1fr',gap:20}}>
+              <div className="card" style={{padding:20}}>
+                <div className="section-title" style={{fontSize:'1.1rem',marginBottom:16}}>⚙ Quick Parameters</div>
+                {[
+                  { label:'Land Length (ft)', val:landL, set:setLandL, min:50, max:5000, step:10 },
+                  { label:'Land Width (ft)',  val:landW, set:setLandW, min:50, max:5000, step:10 },
+                  { label:'Number of Plots',  val:plotCount, set:setPlotCount, min:4, max:100, step:1 },
+                  { label:'Road Width (ft)',  val:roadW, set:setRoadW, min:10, max:60, step:1 },
+                  { label:'Price/sq.ft (₹)',  val:pricePerSqft, set:setPricePerSqft, min:100, max:50000, step:100 },
+                ].map((f,i)=>(
+                  <div key={i} style={{marginBottom:14}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                      <label style={{fontSize:12,color:'#94a3b8'}}>{f.label}</label>
+                      <span style={{fontSize:12,color:'#60a5fa',fontWeight:700}}>{fmtNum(f.val)}</span>
+                    </div>
+                    <input type="range" className="range-slider" min={f.min} max={f.max} step={f.step}
+                      value={f.val} onChange={e=>f.set(Number(e.target.value))}/>
+                    <input type="number" className="input-field" value={f.val}
+                      onChange={e=>f.set(Number(e.target.value))}
+                      style={{marginTop:4,padding:'6px 10px',fontSize:12}}/>
+                  </div>
+                ))}
+                <button className="btn-primary" style={{width:'100%',marginTop:4}} onClick={()=>setTab('layout')}>
+                  View Full Layout →
+                </button>
+              </div>
+
+              <div className="card" style={{padding:20}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                  <div className="section-title" style={{fontSize:'1.1rem'}}>🗺 Live Site Preview</div>
+                  <div style={{display:'flex',gap:8}}>
+                    <button className="btn-primary" style={{padding:'6px 12px',fontSize:12}} onClick={()=>setZoom(z=>Math.min(200,z+10))}>🔍+</button>
+                    <button className="btn-primary" style={{padding:'6px 12px',fontSize:12}} onClick={()=>setZoom(z=>Math.max(30,z-10))}>🔍-</button>
+                    <span className="info-badge">Zoom: {zoom}%</span>
+                  </div>
+                </div>
+                <SiteCanvas {...{landL,landW,plotCount,roadW,parkRatio,zoom:Math.min(zoom,80),selectedPlot,setSelectedPlot,showLabels}}/>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ SITE LAYOUT ══ */}
+        {tab==='layout' && (
+          <div className="tab-content">
+            <div style={{marginBottom:20}}>
+              <div className="section-title">📐 Interactive Site Layout Planning</div>
+              <p style={{color:'#64748b',fontSize:13,marginTop:4}}>Enter land dimensions, adjust plots, roads and parks — visualize in real-time</p>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'300px 1fr',gap:20}}>
+              {/* Controls */}
+              <div style={{display:'flex',flexDirection:'column',gap:16}}>
+                <div className="card" style={{padding:18}}>
+                  <div style={{fontWeight:700,color:'#60a5fa',marginBottom:14,fontSize:14}}>🏗 Land Dimensions</div>
+                  {[
+                    { label:'Length (ft)', val:landL, set:setLandL, min:50, max:5000, step:10 },
+                    { label:'Width (ft)',  val:landW, set:setLandW, min:50, max:5000, step:10 },
+                  ].map((f,i)=>(
+                    <div key={i} style={{marginBottom:12}}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                        <label style={{fontSize:12,color:'#94a3b8'}}>{f.label}</label>
+                        <span style={{fontSize:12,color:'#60a5fa',fontWeight:700}}>{fmtNum(f.val)} ft</span>
+                      </div>
+                      <input type="number" className="input-field" value={f.val}
+                        onChange={e=>f.set(Number(e.target.value))} style={{fontSize:13}}/>
+                    </div>
+                  ))}
+                  <div className="stat-row">
+                    <span style={{fontSize:12,color:'#94a3b8'}}>Total Area</span>
+                    <span style={{fontWeight:700,color:'#10b981'}}>{fmtSqft(totalArea)}</span>
+                  </div>
+                  <div className="stat-row">
+                    <span style={{fontSize:12,color:'#94a3b8'}}>Area in Acres</span>
+                    <span style={{fontWeight:700,color:'#60a5fa'}}>{(totalArea/43560).toFixed(3)} acres</span>
+                  </div>
+                  <div className="stat-row" style={{borderBottom:'none'}}>
+                    <span style={{fontSize:12,color:'#94a3b8'}}>Area in Guntas</span>
+                    <span style={{fontWeight:700,color:'#a78bfa'}}>{(totalArea/1089).toFixed(2)} guntas</span>
+                  </div>
+                </div>
+
+                <div className="card" style={{padding:18}}>
+                  <div style={{fontWeight:700,color:'#60a5fa',marginBottom:14,fontSize:14}}>🏘 Plot Configuration</div>
+                  <div style={{marginBottom:12}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                      <label style={{fontSize:12,color:'#94a3b8'}}>Number of Plots</label>
+                      <span style={{fontSize:13,color:'#f59e0b',fontWeight:700}}>{plotCount}</span>
+                    </div>
+                    <input type="range" className="range-slider" min={4} max={100} value={plotCount} onChange={e=>setPlotCount(Number(e.target.value))}/>
+                    <input type="number" className="input-field" value={plotCount} onChange={e=>setPlotCount(Number(e.target.value))} style={{marginTop:4,fontSize:13}}/>
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                      <label style={{fontSize:12,color:'#94a3b8'}}>Road Width (ft)</label>
+                      <span style={{fontSize:13,color:'#94a3b8',fontWeight:700}}>{roadW} ft</span>
+                    </div>
+                    <input type="range" className="range-slider" min={10} max={60} value={roadW} onChange={e=>setRoadW(Number(e.target.value))}/>
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                      <label style={{fontSize:12,color:'#94a3b8'}}>Park / Open Space %</label>
+                      <span style={{fontSize:13,color:'#10b981',fontWeight:700}}>{(parkRatio*100).toFixed(0)}%</span>
+                    </div>
+                    <input type="range" className="range-slider" min={5} max={40} value={Math.round(parkRatio*100)}
+                      onChange={e=>setParkRatio(Number(e.target.value)/100)}/>
+                  </div>
+                </div>
+
+                <div className="card" style={{padding:18}}>
+                  <div style={{fontWeight:700,color:'#60a5fa',marginBottom:12,fontSize:14}}>🔭 View Controls</div>
+                  <div style={{display:'flex',gap:8,marginBottom:10}}>
+                    <button className="btn-primary" style={{flex:1,padding:'8px'}} onClick={()=>setZoom(z=>Math.min(200,z+10))}>🔍 Zoom +</button>
+                    <button className="btn-primary" style={{flex:1,padding:'8px'}} onClick={()=>setZoom(z=>Math.max(30,z-10))}>🔍 Zoom -</button>
+                  </div>
+                  <button className="btn-green" style={{width:'100%',padding:'8px',marginBottom:8}} onClick={()=>setZoom(100)}>Reset Zoom</button>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8}}>
+                    <input type="checkbox" id="lbl" checked={showLabels} onChange={e=>setShowLabels(e.target.checked)}/>
+                    <label htmlFor="lbl" style={{fontSize:12,color:'#94a3b8'}}>Show plot labels</label>
+                  </div>
+                  <div className="stat-row" style={{marginTop:10}}>
+                    <span style={{fontSize:12,color:'#94a3b8'}}>Zoom Level</span>
+                    <span className="info-badge">{zoom}%</span>
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="card" style={{padding:18}}>
+                  <div style={{fontWeight:700,color:'#60a5fa',marginBottom:12,fontSize:14}}>🗺 Legend</div>
+                  {[
+                    ['#1e3a5f','#3b82f6','Residential Plot'],
+                    ['#3b1515','#ef4444','Booked Plot'],
+                    ['#3b2a0a','#f59e0b','Reserved Plot'],
+                    ['#064e3b','#10b981','Park / Garden'],
+                    ['#374151','#9ca3af','Road / Pathway'],
+                  ].map(([bg,bc,lbl],i)=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
+                      <div style={{width:20,height:14,background:bg,border:`2px solid ${bc}`,borderRadius:3}}/>
+                      <span style={{fontSize:12,color:'#94a3b8'}}>{lbl}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Canvas */}
+              <div>
+                <div className="card" style={{padding:16}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                    <div>
+                      <div style={{fontWeight:700,color:'#60a5fa',fontSize:14}}>Interactive 2D Site Layout</div>
+                      <div style={{fontSize:11,color:'#64748b'}}>Click any plot to view details • Scroll canvas to explore</div>
+                    </div>
+                    <div style={{display:'flex',gap:8}}>
+                      <span className="info-badge">{plots.length} Plots</span>
+                      <span className="info-badge">Zoom {zoom}%</span>
+                    </div>
+                  </div>
+                  <SiteCanvas {...{landL,landW,plotCount,roadW,parkRatio,zoom,selectedPlot,setSelectedPlot,showLabels}}/>
+                </div>
+
+                {/* Selected Plot Detail */}
+                {selectedPlot && (
+                  <div className="card" style={{padding:20,marginTop:16,borderColor:'#3b82f6'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'start'}}>
+                      <div>
+                        <div style={{fontWeight:700,color:'#60a5fa',fontSize:16}}>📌 {selectedPlot.label} — Selected Plot</div>
+                        <div style={{fontSize:12,color:'#64748b',marginTop:2}}>{selectedPlot.type} | Facing {selectedPlot.facing}</div>
+                      </div>
+                      <span style={{background:STATUS_COLORS[selectedPlot.status]+'30',color:STATUS_COLORS[selectedPlot.status],border:`1px solid ${STATUS_COLORS[selectedPlot.status]}`,borderRadius:6,padding:'4px 10px',fontSize:12,fontWeight:700}}>
+                        {selectedPlot.status}
+                      </span>
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginTop:16}}>
+                      {[
+                        ['Length', `${Math.round(selectedPlot.sqftL)} ft`,'#60a5fa'],
+                        ['Width',  `${Math.round(selectedPlot.sqftW)} ft`,'#a78bfa'],
+                        ['Area',   fmtSqft(selectedPlot.sqft),'#10b981'],
+                        ['Price',  fmtCur(selectedPlot.sqft*pricePerSqft),'#f59e0b'],
+                      ].map(([lbl,val,col],i)=>(
+                        <div key={i} style={{background:'#0f172a',borderRadius:8,padding:12,borderLeft:`3px solid ${col}`}}>
+                          <div style={{fontSize:11,color:'#64748b'}}>{lbl}</div>
+                          <div style={{fontWeight:700,color:col,marginTop:4}}>{val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="btn-red" style={{marginTop:12,padding:'6px 14px',fontSize:12}} onClick={()=>setSelectedPlot(null)}>✕ Deselect</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ COST ESTIMATION ══ */}
+        {tab==='cost' && (
+          <div className="tab-content">
+            <div style={{marginBottom:20}}>
+              <div className="section-title">💰 Cost Estimation</div>
+              <p style={{color:'#64748b',fontSize:13,marginTop:4}}>Accurate cost breakdown using: Total Cost = Area × Price/sq.ft + Additional Charges</p>
+            </div>
+
+            {/* Formula Banner */}
+            <div style={{background:'linear-gradient(135deg,#1e3a5f,#1e1b4b)',border:'1px solid #3b82f6',borderRadius:12,padding:20,marginBottom:20,display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+              <div style={{fontSize:28}}>📐</div>
+              <div>
+                <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:'1.3rem',fontWeight:700,color:'#60a5fa'}}>
+                  Total Cost = Total Area × Price/sq.ft + Additional Charges
+                </div>
+                <div style={{color:'#64748b',fontSize:12,marginTop:4}}>
+                  = {fmtSqft(totalArea)} × {fmtCur(pricePerSqft)}/sq.ft + Registration + Development + Road + Misc
+                </div>
+              </div>
+              <div style={{marginLeft:'auto',textAlign:'right'}}>
+                <div style={{fontSize:11,color:'#64748b'}}>Grand Total</div>
+                <div style={{fontSize:'1.6rem',fontWeight:800,color:'#10b981'}}>{fmtCur(totalCost)}</div>
+              </div>
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'320px 1fr',gap:20}}>
+              {/* Inputs */}
+              <div style={{display:'flex',flexDirection:'column',gap:16}}>
+                <div className="card" style={{padding:18}}>
+                  <div style={{fontWeight:700,color:'#60a5fa',marginBottom:14,fontSize:14}}>💵 Price Parameters</div>
+                  {[
+                    { label:'Price per sq.ft (₹)', val:pricePerSqft, set:setPricePerSqft, min:100, max:100000, step:100 },
+                    { label:'Registration Fee (%)', val:regPct, set:setRegPct, min:1, max:15, step:0.5 },
+                    { label:'Development Charge (₹/sqft)', val:devCharge, set:setDevCharge, min:10, max:500, step:5 },
+                    { label:'Road Construction (₹/sqft)', val:roadCost, set:setRoadCost, min:10, max:500, step:5 },
+                    { label:'Miscellaneous (%)', val:miscCharge, set:setMiscCharge, min:0.5, max:10, step:0.5 },
+                  ].map((f,i)=>(
+                    <div key={i} style={{marginBottom:12}}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                        <label style={{fontSize:12,color:'#94a3b8'}}>{f.label}</label>
+                        <span style={{fontSize:12,color:'#60a5fa',fontWeight:700}}>{fmtNum(f.val)}</span>
+                      </div>
+                      <input type="number" className="input-field" value={f.val}
+                        onChange={e=>f.set(Number(e.target.value))} step={f.step} style={{fontSize:13}}/>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Cost Summary */}
+                <div className="card" style={{padding:18}}>
+                  <div style={{fontWeight:700,color:'#60a5fa',marginBottom:12,fontSize:14}}>📊 Cost Summary</div>
+                  {[
+                    ['Land Cost',   landCost, '#3b82f6'],
+                    ['Registration',regFee,   '#8b5cf6'],
+                    ['Development', devFee,   '#10b981'],
+                    ['Road Const.', roadFee,  '#f59e0b'],
+                    ['Miscellaneous',miscFee, '#ec4899'],
+                  ].map(([lbl,val,col],i)=>(
+                    <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #1e293b'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        <div style={{width:3,height:16,background:col,borderRadius:2}}/>
+                        <span style={{fontSize:12,color:'#94a3b8'}}>{lbl}</span>
+                      </div>
+                      <span style={{fontWeight:700,color:col,fontSize:13}}>{fmtCur(val)}</span>
+                    </div>
+                  ))}
+                  <div style={{display:'flex',justifyContent:'space-between',marginTop:12,padding:'10px',background:'#0f172a',borderRadius:8}}>
+                    <span style={{fontWeight:700,color:'#e2e8f0'}}>GRAND TOTAL</span>
+                    <span style={{fontWeight:800,color:'#10b981',fontSize:'1.1rem'}}>{fmtCur(totalCost)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Plot Cost Table */}
+              <div className="card" style={{padding:18,overflowY:'auto',maxHeight:700}}>
+                <div style={{fontWeight:700,color:'#60a5fa',marginBottom:14,fontSize:14}}>📋 Individual Plot Cost Schedule</div>
+                <div style={{overflowX:'auto'}}>
+                  <table className="cost-table" style={{width:'100%',borderCollapse:'collapse'}}>
+                    <thead>
+                      <tr>
+                        <th>Plot No.</th><th>Type</th><th>Status</th><th>Facing</th>
+                        <th>Length (ft)</th><th>Width (ft)</th><th>Area (sqft)</th><th>Plot Price (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {plots.map(p=>(
+                        <tr key={p.id} onClick={()=>{setSelectedPlot(p);setTab('layout');}}
+                          style={{cursor:'pointer',background:selectedPlot?.id===p.id?'#1e3a5f30':''}}>
+                          <td style={{fontWeight:700,color:'#60a5fa'}}>{p.label}</td>
+                          <td style={{color:'#a78bfa'}}>{p.type}</td>
+                          <td>
+                            <span style={{background:STATUS_COLORS[p.status]+'25',color:STATUS_COLORS[p.status],borderRadius:4,padding:'2px 8px',fontSize:11,fontWeight:600}}>
+                              {p.status}
+                            </span>
+                          </td>
+                          <td style={{color:'#94a3b8'}}>{p.facing}</td>
+                          <td style={{color:'#e2e8f0'}}>{Math.round(p.sqftL)}</td>
+                          <td style={{color:'#e2e8f0'}}>{Math.round(p.sqftW)}</td>
+                          <td style={{color:'#10b981',fontWeight:600}}>{fmtNum(p.sqft)}</td>
+                          <td style={{color:'#f59e0b',fontWeight:700}}>{fmtCur(p.sqft*pricePerSqft)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <th colSpan={6} style={{textAlign:'right',color:'#60a5fa'}}>Totals →</th>
+                        <th style={{color:'#10b981'}}>{fmtNum(plotSqftTotal)}</th>
+                        <th style={{color:'#f59e0b'}}>{fmtCur(plotSqftTotal*pricePerSqft)}</th>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ BLUEPRINT ══ */}
+        {tab==='blueprint' && (
+          <div className="tab-content">
+            <div style={{marginBottom:20}}>
+              <div className="section-title">📋 Professional Site Blueprint</div>
+              <p style={{color:'#64748b',fontSize:13,marginTop:4}}>Architectural CAD-style blueprint with technical annotations — download as PNG or print as PDF</p>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'260px 1fr',gap:20}}>
+              <div style={{display:'flex',flexDirection:'column',gap:14}}>
+                <div className="card" style={{padding:18}}>
+                  <div style={{fontWeight:700,color:'#60a5fa',marginBottom:12,fontSize:14}}>🔭 Blueprint Controls</div>
+                  <div style={{display:'flex',gap:8,marginBottom:10}}>
+                    <button className="btn-primary" style={{flex:1,fontSize:12,padding:'8px'}} onClick={()=>setZoom(z=>Math.min(200,z+10))}>🔍+</button>
+                    <button className="btn-primary" style={{flex:1,fontSize:12,padding:'8px'}} onClick={()=>setZoom(z=>Math.max(30,z-10))}>🔍-</button>
+                  </div>
+                  <button className="btn-green" style={{width:'100%',marginBottom:10,padding:'8px'}} onClick={()=>setZoom(100)}>Reset Zoom</button>
+                  <div className="stat-row"><span style={{fontSize:12,color:'#94a3b8'}}>Zoom</span><span className="info-badge">{zoom}%</span></div>
+                  <div className="stat-row"><span style={{fontSize:12,color:'#94a3b8'}}>Plots</span><span className="info-badge">{plotCount}</span></div>
+                  <div className="stat-row"><span style={{fontSize:12,color:'#94a3b8'}}>Total Area</span><span className="info-badge">{fmtSqft(totalArea)}</span></div>
+                  <div className="stat-row" style={{borderBottom:'none'}}><span style={{fontSize:12,color:'#94a3b8'}}>Road Width</span><span className="info-badge">{roadW} ft</span></div>
+                </div>
+                <div className="card" style={{padding:18}}>
+                  <div style={{fontWeight:700,color:'#60a5fa',marginBottom:12,fontSize:14}}>📌 Blueprint Info</div>
+                  <div style={{fontSize:12,color:'#64748b',lineHeight:1.7}}>
+                    • Blue background: CAD standard<br/>
+                    • White lines: plot boundaries<br/>
+                    • Yellow dashes: road centre lines<br/>
+                    • Green hatch: parks/open space<br/>
+                    • Purple borders: commercial plots<br/>
+                    • North arrow: orientation<br/>
+                    • Title block: standard engineering format
+                  </div>
+                </div>
+              </div>
+              <div className="card" style={{padding:16}}>
+                <BlueprintCanvas {...{landL,landW,plotCount,roadW,parkRatio,zoom}}/>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ PLOT DETAILS ══ */}
+        {tab==='plots' && (
+          <div className="tab-content">
+            <div style={{marginBottom:20}}>
+              <div className="section-title">🏘 Plot Details</div>
+              <p style={{color:'#64748b',fontSize:13,marginTop:4}}>Browse, filter, and inspect individual plot information</p>
+            </div>
+            {/* Filter */}
+            <div style={{display:'flex',gap:10,marginBottom:20,flexWrap:'wrap'}}>
+              {['All','Available','Booked','Reserved'].map(f=>(
+                <button key={f} onClick={()=>setPlotFilter(f)}
+                  style={{padding:'8px 20px',borderRadius:8,border:`1px solid ${f==='All'?'#334155':STATUS_COLORS[f]||'#334155'}`,
+                    background:plotFilter===f?(f==='All'?'#1e40af':STATUS_COLORS[f]||'#1e40af'):'transparent',
+                    color:plotFilter===f?'#fff':(STATUS_COLORS[f]||'#94a3b8'),cursor:'pointer',fontWeight:600,fontSize:13}}>
+                  {f} {f==='All'?`(${plots.length})`:f==='Available'?`(${availCount})`:f==='Booked'?`(${bookedCount})`:`(${resrvCount})`}
+                </button>
+              ))}
+              <div style={{marginLeft:'auto',display:'flex',gap:8}}>
+                <span className="info-badge">Total: {filteredPlots.length} plots</span>
+                <span className="info-badge">Area: {fmtSqft(filteredPlots.reduce((s,p)=>s+p.sqft,0))}</span>
+              </div>
+            </div>
+            {/* Grid */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:14}}>
+              {filteredPlots.map(p=>(
+                <div key={p.id} className={`plot-card ${selectedPlot?.id===p.id?'selected':''}`}
+                  onClick={()=>setSelectedPlot(selectedPlot?.id===p.id?null:p)}
+                  style={{background:selectedPlot?.id===p.id?'#1e3a5f':'#1e293b',
+                    borderColor:selectedPlot?.id===p.id?'#3b82f6':STATUS_COLORS[p.status]+'40'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:10}}>
+                    <div style={{fontWeight:800,color:'#60a5fa',fontSize:16}}>{p.label}</div>
+                    <span style={{background:STATUS_COLORS[p.status]+'25',color:STATUS_COLORS[p.status],
+                      border:`1px solid ${STATUS_COLORS[p.status]}`,borderRadius:4,padding:'2px 7px',fontSize:10,fontWeight:700}}>
+                      {p.status}
+                    </span>
+                  </div>
+                  <div style={{fontSize:11,color:'#7c3aed',fontWeight:600,marginBottom:8}}>
+                    {p.type}
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                    {[
+                      ['Facing',p.facing,'#94a3b8'],
+                      ['Area',`${fmtNum(p.sqft)} sqft`,'#10b981'],
+                      ['Length',`${Math.round(p.sqftL)} ft`,'#60a5fa'],
+                      ['Width', `${Math.round(p.sqftW)} ft`,'#a78bfa'],
+                    ].map(([l,v,c],i)=>(
+                      <div key={i} style={{background:'#0f172a',borderRadius:6,padding:'6px 8px'}}>
+                        <div style={{fontSize:9,color:'#475569',marginBottom:1}}>{l}</div>
+                        <div style={{fontSize:12,fontWeight:700,color:c}}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{marginTop:10,background:'#0f172a',borderRadius:6,padding:'6px 8px'}}>
+                    <div style={{fontSize:9,color:'#475569'}}>Plot Price</div>
+                    <div style={{fontWeight:800,color:'#f59e0b',fontSize:14}}>{fmtCur(p.sqft*pricePerSqft)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ══ REPORTS ══ */}
+        {tab==='reports' && (
+          <div className="tab-content">
+            <div style={{marginBottom:20}}>
+              <div className="section-title">📊 Reports & Downloads</div>
+              <p style={{color:'#64748b',fontSize:13,marginTop:4}}>Download site layout, blueprint, cost estimation, and plot schedule</p>
+            </div>
+
+            {/* Summary Report Card */}
+            <div className="card" style={{padding:24,marginBottom:20}}>
+              <div style={{fontFamily:'Rajdhani,sans-serif',fontWeight:700,fontSize:'1.2rem',color:'#60a5fa',marginBottom:16}}>
+                📄 Site Planning Summary Report
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(250px,1fr))',gap:16,marginBottom:20}}>
+                <div>
+                  <div style={{fontWeight:700,color:'#94a3b8',fontSize:12,marginBottom:10,letterSpacing:1}}>LAND INFORMATION</div>
+                  {[
+                    ['Land Length', `${fmtNum(landL)} ft`],
+                    ['Land Width',  `${fmtNum(landW)} ft`],
+                    ['Total Area',  fmtSqft(totalArea)],
+                    ['Area in Acres', `${(totalArea/43560).toFixed(3)} acres`],
+                    ['Area in Guntas',`${(totalArea/1089).toFixed(2)} guntas`],
+                    ['Road Width',  `${roadW} ft`],
+                    ['Park/Open Space', `${(parkRatio*100).toFixed(0)}%`],
+                  ].map(([l,v],i)=>(
+                    <div key={i} className="stat-row" style={{borderBottom:'1px solid #0f172a'}}>
+                      <span style={{fontSize:12,color:'#64748b'}}>{l}</span>
+                      <span style={{fontSize:12,fontWeight:600,color:'#e2e8f0'}}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{fontWeight:700,color:'#94a3b8',fontSize:12,marginBottom:10,letterSpacing:1}}>PLOT STATISTICS</div>
+                  {[
+                    ['Total Plots',   plotCount],
+                    ['Available',     availCount],
+                    ['Booked',        bookedCount],
+                    ['Reserved',      resrvCount],
+                    ['Avg Plot Area', fmtSqft(avgPlotSqft)],
+                    ['Residential',   plots.filter(p=>p.type==='Residential').length],
+                    ['Commercial',    plots.filter(p=>p.type==='Commercial').length],
+                  ].map(([l,v],i)=>(
+                    <div key={i} className="stat-row" style={{borderBottom:'1px solid #0f172a'}}>
+                      <span style={{fontSize:12,color:'#64748b'}}>{l}</span>
+                      <span style={{fontSize:12,fontWeight:600,color:'#e2e8f0'}}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{fontWeight:700,color:'#94a3b8',fontSize:12,marginBottom:10,letterSpacing:1}}>COST BREAKDOWN</div>
+                  {[
+                    ['Price/sq.ft',      fmtCur(pricePerSqft)],
+                    ['Land Cost',        fmtCur(landCost)],
+                    ['Registration Fee', fmtCur(regFee)],
+                    ['Development',      fmtCur(devFee)],
+                    ['Road Construction',fmtCur(roadFee)],
+                    ['Miscellaneous',    fmtCur(miscFee)],
+                    ['GRAND TOTAL',      fmtCur(totalCost)],
+                  ].map(([l,v],i)=>(
+                    <div key={i} className="stat-row" style={{borderBottom:'1px solid #0f172a',fontWeight:i===6?700:'normal'}}>
+                      <span style={{fontSize:12,color:i===6?'#10b981':'#64748b'}}>{l}</span>
+                      <span style={{fontSize:12,fontWeight:i===6?800:600,color:i===6?'#10b981':'#e2e8f0'}}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Download Buttons */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:16}}>
+              {[
+                { icon:'📊', title:'Plot Schedule CSV', desc:'Download complete plot schedule with all dimensions and prices', action:downloadCSV, btnClass:'btn-green', label:'⬇ Download CSV' },
+                { icon:'🖨', title:'Print Site Report', desc:'Print a full detailed cost estimation and site summary report', action:()=>window.print(), btnClass:'btn-orange', label:'🖨 Print Report' },
+                { icon:'📋', title:'Blueprint Page', desc:'Go to blueprint generator to download PNG or print PDF', action:()=>setTab('blueprint'), btnClass:'btn-primary', label:'→ Open Blueprint' },
+                { icon:'📐', title:'Layout Page', desc:'Go to site layout to view the full interactive 2D map', action:()=>setTab('layout'), btnClass:'btn-primary', label:'→ Open Layout' },
+              ].map((d,i)=>(
+                <div key={i} className="card" style={{padding:20}}>
+                  <div style={{fontSize:32,marginBottom:10}}>{d.icon}</div>
+                  <div style={{fontWeight:700,color:'#e2e8f0',marginBottom:6}}>{d.title}</div>
+                  <div style={{fontSize:12,color:'#64748b',marginBottom:16,lineHeight:1.5}}>{d.desc}</div>
+                  <button className={d.btnClass} style={{width:'100%'}} onClick={d.action}>{d.label}</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
