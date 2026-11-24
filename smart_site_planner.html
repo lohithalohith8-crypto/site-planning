@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Land Site Planning, Layout Visualization & Cost Estimation System</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        blueprint: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            800: '#0c2340',
+                            900: '#07162c',
+                            grid: '#1e3a5f',
+                            line: '#38bdf8'
+                        },
+                        civil: {
+                            primary: '#0f766e',
+                            secondary: '#0369a1',
+                            amber: '#d97706',
+                            emerald: '#059669',
+                            dark: '#0f172a'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Font Awesome Icons & Lucide Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- React & ReactDOM (UMD for zero-friction instant browser execution) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel standalone for in-browser JSX parsing -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Chart.js for Cost Distribution & Area Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Custom Blueprint Technical Grid Pattern */
+        .blueprint-pattern {
+            background-color: #0c2340;
+            background-image: 
+                linear-gradient(rgba(56, 189, 248, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.15) 1px, transparent 1px),
+                linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px, 50px 50px, 10px 10px, 10px 10px;
+        }
+
+        /* Print Specific Styling */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .blueprint-print-area {
+                width: 100% !important;
+                height: 100% !important;
+                page-break-inside: avoid;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex flex-col selection:bg-sky-500 selection:text-white">
+    <div id="root"></div>
+
+    <!-- React Application Script -->
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // Default Land Project Configuration
+        const INITIAL_PROJECT = {
+            projectName: "Green Valley Smart Layout Township",
+            location: "North Smart Corridor, Tumakuru - NH-48",
+            engineerName: "Er. Ramesh K. (Civil & Urban Planner)",
+            totalLength: 300, // in feet
+            totalWidth: 200,  // in feet
+            pricePerSqFt: 2200, // Rs per Sq.Ft
+            roadsWidth: 30, // 30ft central road
+            pathwayWidth: 10,
+            roadCostPerSqFt: 180,
+            registrationDutyPercent: 5.5,
+            developmentChargePerSqFt: 120,
+            miscApprovalsCost: 150000,
+            numPlots: 12,
+            parkRatio: 0.12 // 12% open green space
+        };
+
+        // Main Dashboard Application Component
+        function SmartSitePlannerApp() {
+            // Active Section: 1. Dashboard, 2. Site Layout, 3. Cost Estimation, 4. Blueprint Generator, 5. Plot Details, 6. Download Reports
+            const [activeTab, setActiveTab] = useState("dashboard");
+            
+            // Core Config State
+            const [config, setConfig] = useState(INITIAL_PROJECT);
+            const [zoomLevel, setZoomLevel] = useState(1);
+            const [selectedPlotId, setSelectedPlotId] = useState(null);
+            const [filterCategory, setFilterCategory] = useState("all");
+            const [blueprintViewMode, setBlueprintViewMode] = useState("blueprint"); // "blueprint" (technical blue) or "realistic" (architectural)
+            const [toastMessage, setToastMessage] = useState(null);
+
+            const canvasRef = useRef(null);
+            const chartRef = useRef(null);
+
+            // Calculations
+            const totalAreaSqFt = useMemo(() => {
+                return config.totalLength * config.totalWidth;
+            }, [config.totalLength, config.totalWidth]);
+
+            const totalLandCost = useMemo(() => {
+                return totalAreaSqFt * config.pricePerSqFt;
+            }, [totalAreaSqFt, config.pricePerSqFt]);
+
+            // Road & Open Spaces Calculation
+            const roadAreaSqFt = useMemo(() => {
+                // Central arterial spine road running full length + side access road
+                return (config.totalLength * config.roadsWidth) + ((config.totalWidth - config.roadsWidth) * config.pathwayWidth * 2);
+            }, [config.totalLength, config.totalWidth, config.roadsWidth, config.pathwayWidth]);
+
+            const parkAreaSqFt = useMemo(() => {
+                return Math.round(totalAreaSqFt * config.parkRatio);
+            }, [totalAreaSqFt, config.parkRatio]);
+
+            const salablePlotAreaSqFt = useMemo(() => {
+                const remainder = totalAreaSqFt - (roadAreaSqFt + parkAreaSqFt);
+                return remainder > 0 ? remainder : 0;
+            }, [totalAreaSqFt, roadAreaSqFt, parkAreaSqFt]);
+
+            // Dynamically Calculated Plots with Geometry
+            const plots = useMemo(() => {
+                const count = Math.max(2, Math.min(48, parseInt(config.numPlots) || 12));
+                const list = [];
+                
+                // Divides the salable area on North & South rows flanking the central road
+                const halfPlots = Math.ceil(count / 2);
+                const roadY = (config.totalWidth - config.roadsWidth) / 2;
+                
+                const northPlotWidth = config.totalLength / halfPlots;
+                const northPlotDepth = roadY;
+                
+                const southPlotsCount = count - halfPlots;
+                const southPlotWidth = config.totalLength / Math.max(1, southPlotsCount);
+                const southPlotDepth = config.totalWidth - (roadY + config.roadsWidth);
+
+                let plotIndex = 1;
+
+                // North Row Plots
+                for (let i = 0; i < halfPlots; i++) {
+                    const plotW = Math.round(northPlotWidth);
+                    const plotL = Math.round(northPlotDepth);
+                    const sqFt = plotW * plotL;
+                    const isCorner = i === 0 || i === halfPlots - 1;
+                    const rate = config.pricePerSqFt + (isCorner ? 250 : 0);
+                    const cost = sqFt * rate;
+                    const status = i === 2 ? 'Booked' : (i === 4 ? 'Reserved' : 'Available');
+
+                    list.push({
+                        id: `plot-${plotIndex}`,
+                        plotNumber: `Plot #${plotIndex < 10 ? '0' + plotIndex : plotIndex}`,
+                        x: i * northPlotWidth,
+                        y: 0,
+                        width: plotW,
+                        length: plotL,
+                        sqFt: sqFt,
+                        facing: "South Facing (Main Road)",
+                        isCorner: isCorner,
+                        status: status,
+                        pricePerSqFt: rate,
+                        totalCost: cost,
+                        category: isCorner ? "Corner Commercial/Residential" : (sqFt > 1500 ? "Luxury Villa" : "Standard Residential")
+                    });
+                    plotIndex++;
+                }
+
+                // South Row Plots
+                for (let i = 0; i < southPlotsCount; i++) {
+                    const plotW = Math.round(southPlotWidth);
+                    const plotL = Math.round(southPlotDepth);
+                    const sqFt = plotW * plotL;
+                    const isCorner = i === 0 || i === southPlotsCount - 1;
+                    const rate = config.pricePerSqFt + (isCorner ? 250 : 0);
+                    const cost = sqFt * rate;
+                    const status = i === 1 ? 'Booked' : (i === 3 ? 'Reserved' : 'Available');
+
+                    list.push({
+                        id: `plot-${plotIndex}`,
+                        plotNumber: `Plot #${plotIndex < 10 ? '0' + plotIndex : plotIndex}`,
+                        x: i * southPlotWidth,
+                        y: roadY + config.roadsWidth,
+                        width: plotW,
+                        length: plotL,
+                        sqFt: sqFt,
+                        facing: "North Facing (Main Road)",
+                        isCorner: isCorner,
+                        status: status,
+                        pricePerSqFt: rate,
+                        totalCost: cost,
+                        category: isCorner ? "Corner Commercial/Residential" : (sqFt > 1500 ? "Luxury Villa" : "Standard Residential")
+                    });
+                    plotIndex++;
+                }
+
+                return list;
+            }, [config.numPlots, config.totalLength, config.totalWidth, config.roadsWidth, config.pricePerSqFt]);
+
+            // Additional Cost Items
+            const roadConstructionCost = useMemo(() => {
+                return roadAreaSqFt * config.roadCostPerSqFt;
+            }, [roadAreaSqFt, config.roadCostPerSqFt]);
+
+            const registrationCost = useMemo(() => {
+                return Math.round(totalLandCost * (config.registrationDutyPercent / 100));
+            }, [totalLandCost, config.registrationDutyPercent]);
+
+            const developmentCost = useMemo(() => {
+                return totalAreaSqFt * config.developmentChargePerSqFt;
+            }, [totalAreaSqFt, config.developmentChargePerSqFt]);
+
+            const grandTotalProjectCost = useMemo(() => {
+                return totalLandCost + roadConstructionCost + registrationCost + developmentCost + parseInt(config.miscApprovalsCost || 0);
+            }, [totalLandCost, roadConstructionCost, registrationCost, developmentCost, config.miscApprovalsCost]);
+
+            // Selected Plot details
+            const selectedPlot = useMemo(() => {
+                return plots.find(p => p.id === selectedPlotId) || plots[0];
+            }, [plots, selectedPlotId]);
+
+            // Toast helper
+            const showToast = (msg) => {
+                setToastMessage(msg);
+                setTimeout(() => setToastMessage(null), 3500);
+            };
+
+            // Canvas Blueprint Drawing Effect
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext("2d");
+
+                const canvasW = canvas.width;
+                const canvasH = canvas.height;
+
+                // Scale factors to fit totalLength x totalWidth into canvas
+                const padding = 60;
+                const scaleX = (canvasW - padding * 2) / config.totalLength;
+                const scaleY = (canvasH - padding * 2) / config.totalWidth;
+                const scale = Math.min(scaleX, scaleY) * zoomLevel;
+
+                const originX = (canvasW - (config.totalLength * scale)) / 2;
+                const originY = (canvasH - (config.totalWidth * scale)) / 2;
+
+                ctx.clearRect(0, 0, canvasW, canvasH);
+
+                const isBlueprint = blueprintViewMode === "blueprint";
+
+                // Background
+                if (isBlueprint) {
+                    ctx.fillStyle = "#0c2340";
+                    ctx.fillRect(0, 0, canvasW, canvasH);
+
+                    // Grid Lines
+                    ctx.strokeStyle = "rgba(56, 189, 248, 0.12)";
+                    ctx.lineWidth = 1;
+                    const gridSize = 25 * zoomLevel;
+                    for (let x = 0; x < canvasW; x += gridSize) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, 0);
+                        ctx.lineTo(x, canvasH);
+                        ctx.stroke();
+                    }
+                    for (let y = 0; y < canvasH; y += gridSize) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, y);
+                        ctx.lineTo(canvasW, y);
+                        ctx.stroke();
+                    }
+                } else {
+                    // Realistic architectural layout
+                    ctx.fillStyle = "#f8fafc";
+                    ctx.fillRect(0, 0, canvasW, canvasH);
+                }
+
+                // Overall Site Boundary Border
+                ctx.save();
+                ctx.translate(originX, originY);
+
+                ctx.strokeStyle = isBlueprint ? "#38bdf8" : "#0f766e";
+                ctx.lineWidth = 3;
+                ctx.strokeRect(0, 0, config.totalLength * scale, config.totalWidth * scale);
+
+                // Central Road Visualization
+                const roadY = (config.totalWidth - config.roadsWidth) / 2;
+                ctx.fillStyle = isBlueprint ? "rgba(15, 23, 42, 0.85)" : "#334155";
+                ctx.fillRect(0, roadY * scale, config.totalLength * scale, config.roadsWidth * scale);
+
+                // Road Center Dashed Line
+                ctx.strokeStyle = isBlueprint ? "#94a3b8" : "#facc15";
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 8]);
+                ctx.beginPath();
+                ctx.moveTo(0, (roadY + config.roadsWidth / 2) * scale);
+                ctx.lineTo(config.totalLength * scale, (roadY + config.roadsWidth / 2) * scale);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Road Text
+                ctx.fillStyle = "#ffffff";
+                ctx.font = `bold ${Math.max(10, 13 * zoomLevel)}px 'Plus Jakarta Sans'`;
+                ctx.textAlign = "center";
+                ctx.fillText(`CENTRAL ACCESS ARTERIAL ROAD (${config.roadsWidth}' WIDE)`, (config.totalLength * scale) / 2, (roadY + config.roadsWidth / 2 + 5) * scale);
+
+                // Park / Open Space Overlay (Top Right Corner or Reserved Plot)
+                const parkW = config.totalLength * 0.15;
+                const parkH = roadY;
+                ctx.fillStyle = isBlueprint ? "rgba(16, 185, 129, 0.2)" : "#dcfce7";
+                ctx.strokeStyle = "#10b981";
+                ctx.lineWidth = 2;
+                ctx.strokeRect((config.totalLength - parkW) * scale, 0, parkW * scale, parkH * scale);
+                ctx.fillRect((config.totalLength - parkW) * scale, 0, parkW * scale, parkH * scale);
+
+                ctx.fillStyle = isBlueprint ? "#34d399" : "#15803d";
+                ctx.font = `bold ${Math.max(9, 11 * zoomLevel)}px 'Plus Jakarta Sans'`;
+                ctx.fillText(`COMMUNITY PARK & GREENERY`, (config.totalLength - parkW / 2) * scale, (parkH / 2) * scale);
+                ctx.font = `${Math.max(8, 10 * zoomLevel)}px 'Plus Jakarta Sans'`;
+                ctx.fillText(`${parkAreaSqFt.toLocaleString()} Sq.Ft`, (config.totalLength - parkW / 2) * scale, (parkH / 2 + 14) * scale);
+
+                // Draw Individual Plots
+                plots.forEach((p) => {
+                    const px = p.x * scale;
+                    const py = p.y * scale;
+                    const pw = p.width * scale;
+                    const pl = p.length * scale;
+
+                    const isSelected = selectedPlotId === p.id;
+
+                    // Plot Background Fill based on Status
+                    let fillColor;
+                    if (isSelected) {
+                        fillColor = isBlueprint ? "rgba(56, 189, 248, 0.35)" : "rgba(2, 132, 199, 0.25)";
+                    } else if (p.status === "Booked") {
+                        fillColor = isBlueprint ? "rgba(239, 68, 68, 0.22)" : "#fee2e2";
+                    } else if (p.status === "Reserved") {
+                        fillColor = isBlueprint ? "rgba(245, 158, 11, 0.22)" : "#fef3c7";
+                    } else {
+                        fillColor = isBlueprint ? "rgba(16, 185, 129, 0.18)" : "#ecfdf5";
+                    }
+
+                    ctx.fillStyle = fillColor;
+                    ctx.fillRect(px, py, pw, pl);
+
+                    // Plot Border
+                    ctx.strokeStyle = isSelected 
+                        ? "#f59e0b" 
+                        : (isBlueprint ? "rgba(56, 189, 248, 0.6)" : "#cbd5e1");
+                    ctx.lineWidth = isSelected ? 3 : 1.5;
+                    ctx.strokeRect(px, py, pw, pl);
+
+                    // Plot Text
+                    ctx.fillStyle = isBlueprint ? "#ffffff" : "#0f172a";
+                    ctx.font = `bold ${Math.max(10, 12 * zoomLevel)}px 'Plus Jakarta Sans'`;
+                    ctx.textAlign = "center";
+                    ctx.fillText(p.plotNumber, px + pw / 2, py + pl / 2 - 8);
+
+                    // Dimensions Text
+                    ctx.font = `600 ${Math.max(8, 10 * zoomLevel)}px 'JetBrains Mono'`;
+                    ctx.fillStyle = isBlueprint ? "#38bdf8" : "#0369a1";
+                    ctx.fillText(`${p.width}' × ${p.length}'`, px + pw / 2, py + pl / 2 + 8);
+
+                    // Sq.Ft
+                    ctx.font = `700 ${Math.max(8, 10 * zoomLevel)}px 'Plus Jakarta Sans'`;
+                    ctx.fillStyle = isBlueprint ? "#a7f3d0" : "#059669";
+                    ctx.fillText(`${p.sqFt.toLocaleString()} sq.ft`, px + pw / 2, py + pl / 2 + 22);
+
+                    // Status Dot Indicator
+                    const dotColor = p.status === "Available" ? "#10b981" : (p.status === "Booked" ? "#ef4444" : "#f59e0b");
+                    ctx.fillStyle = dotColor;
+                    ctx.beginPath();
+                    ctx.arc(px + 12, py + 12, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Measurement Annotations outside Boundary
+                ctx.fillStyle = isBlueprint ? "#38bdf8" : "#475569";
+                ctx.font = "bold 12px 'JetBrains Mono'";
+
+                // Top Length dimension line
+                ctx.textAlign = "center";
+                ctx.fillText(`TOTAL LENGTH: ${config.totalLength} FT`, (config.totalLength * scale) / 2, -15);
+
+                // Left Width dimension line
+                ctx.save();
+                ctx.translate(-20, (config.totalWidth * scale) / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText(`TOTAL WIDTH: ${config.totalWidth} FT`, 0, 0);
+                ctx.restore();
+
+                // North Compass Marker (Top Left)
+                ctx.restore();
+                drawCompass(ctx, 50, 60, isBlueprint);
+
+            }, [config, plots, selectedPlotId, zoomLevel, blueprintViewMode, parkAreaSqFt]);
+
+            // Draw North Direction Arrow Compass
+            const drawCompass = (ctx, x, y, isBlueprint) => {
+                ctx.save();
+                ctx.translate(x, y);
+
+                ctx.strokeStyle = isBlueprint ? "#38bdf8" : "#0f766e";
+                ctx.fillStyle = isBlueprint ? "#0c2340" : "#ffffff";
+                ctx.lineWidth = 2;
+
+                ctx.beginPath();
+                ctx.arc(0, 0, 24, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // North needle
+                ctx.fillStyle = "#ef4444";
+                ctx.beginPath();
+                ctx.moveTo(0, -18);
+                ctx.lineTo(6, 0);
+                ctx.lineTo(-6, 0);
+                ctx.closePath();
+                ctx.fill();
+
+                // South needle
+                ctx.fillStyle = isBlueprint ? "#94a3b8" : "#475569";
+                ctx.beginPath();
+                ctx.moveTo(0, 18);
+                ctx.lineTo(6, 0);
+                ctx.lineTo(-6, 0);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 10px 'Plus Jakarta Sans'";
+                ctx.textAlign = "center";
+                ctx.fillText("N", 0, -28);
+
+                ctx.restore();
+            };
+
+            // Canvas Click Detection to Select Plot
+            const handleCanvasClick = (e) => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const rect = canvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                const padding = 60;
+                const scaleX = (canvas.width - padding * 2) / config.totalLength;
+                const scaleY = (canvas.height - padding * 2) / config.totalWidth;
+                const scale = Math.min(scaleX, scaleY) * zoomLevel;
+
+                const originX = (canvas.width - (config.totalLength * scale)) / 2;
+                const originY = (canvas.height - (config.totalWidth * scale)) / 2;
+
+                const localX = (clickX - originX) / scale;
+                const localY = (clickY - originY) / scale;
+
+                const clickedPlot = plots.find(p => 
+                    localX >= p.x && localX <= p.x + p.width &&
+                    localY >= p.y && localY <= p.y + p.length
+                );
+
+                if (clickedPlot) {
+                    setSelectedPlotId(clickedPlot.id);
+                    showToast(`Selected ${clickedPlot.plotNumber} (${clickedPlot.sqFt} Sq.Ft)`);
+                }
+            };
+
+            // Download Blueprint as PNG
+            const handleDownloadBlueprintPNG = () => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const dataUrl = canvas.toDataURL("image/png");
+                const link = document.createElement("a");
+                link.download = `${config.projectName.replace(/\s+/g, '_')}_Blueprint.png`;
+                link.href = dataUrl;
+                link.click();
+                showToast("Blueprint PNG downloaded successfully!");
+            };
+
+            // Trigger Browser Print for PDF
+            const handlePrintPDF = () => {
+                window.print();
+            };
+
+            return (
+                <div className="flex flex-col min-h-screen">
+                    {/* Top Navigation Bar */}
+                    <header className="no-print bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-50 shadow-lg">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-teal-400 flex items-center justify-center text-white shadow-md shadow-sky-500/20">
+                                    <i className="fa-solid fa-compass-drafting text-lg"></i>
+                                </div>
+                                <div>
+                                    <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                                        SmartSite Planner <span className="text-xs bg-sky-500/20 text-sky-400 px-2 py-0.5 rounded-full border border-sky-500/30 font-medium">Pro 2.0</span>
+                                    </h1>
+                                    <p className="text-xs text-slate-400">Land Layout Visualization, Blueprint CAD & Cost Estimation</p>
+                                </div>
+                            </div>
+
+                            {/* Center Section Nav Tabs */}
+                            <nav className="hidden md:flex items-center space-x-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700">
+                                {[
+                                    { id: "dashboard", label: "Dashboard", icon: "fa-gauge" },
+                                    { id: "layout", label: "Site Layout", icon: "fa-layer-group" },
+                                    { id: "cost", label: "Cost Estimation", icon: "fa-calculator" },
+                                    { id: "blueprint", label: "Blueprint Generator", icon: "fa-ruler-combined" },
+                                    { id: "plots", label: "Plot Details", icon: "fa-table-cells" },
+                                    { id: "reports", label: "Download Reports", icon: "fa-file-arrow-down" }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
+                                            activeTab === tab.id
+                                                ? "bg-sky-500 text-white shadow-sm shadow-sky-500/30"
+                                                : "text-slate-400 hover:text-white hover:bg-slate-700/60"
+                                        }`}
+                                    >
+                                        <i className={`fa-solid ${tab.icon}`}></i>
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </nav>
+
+                            {/* Right Actions */}
+                            <div className="flex items-center space-x-2">
+                                <button 
+                                    onClick={handlePrintPDF}
+                                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition"
+                                >
+                                    <i className="fa-solid fa-print"></i>
+                                    <span>Print PDF</span>
+                                </button>
+                                <button 
+                                    onClick={handleDownloadBlueprintPNG}
+                                    className="px-3.5 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold shadow-md shadow-sky-500/20 flex items-center gap-1.5 transition"
+                                >
+                                    <i className="fa-solid fa-download"></i>
+                                    <span>Export PNG</span>
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Toast Notification */}
+                    {toastMessage && (
+                        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white border border-sky-500/40 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-3 animate-bounce text-sm">
+                            <i className="fa-solid fa-circle-check text-sky-400 text-base"></i>
+                            <span>{toastMessage}</span>
+                        </div>
+                    )}
+
+                    {/* Main Workspace Body */}
+                    <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+                        {/* ============================================================== */}
+                        {/* TAB 1: EXECUTIVE DASHBOARD OVERVIEW                            */}
+                        {/* ============================================================== */}
+                        {activeTab === "dashboard" && (
+                            <div className="space-y-6">
+                                {/* Top KPI Metric Cards */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Land Area</p>
+                                            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{totalAreaSqFt.toLocaleString()} <span className="text-sm font-semibold text-slate-500">sq.ft</span></h3>
+                                            <p className="text-xs text-sky-600 font-medium mt-1">{(totalAreaSqFt / 43560).toFixed(2)} Acres ({config.totalLength}' × {config.totalWidth}')</p>
+                                        </div>
+                                        <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl">
+                                            <i className="fa-solid fa-chart-area"></i>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Planned Plots</p>
+                                            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{plots.length} <span className="text-sm font-semibold text-slate-500">Sites</span></h3>
+                                            <p className="text-xs text-emerald-600 font-medium mt-1">{plots.filter(p => p.status === 'Available').length} Available / Empty</p>
+                                        </div>
+                                        <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                                            <i className="fa-solid fa-shapes"></i>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Base Price Rate</p>
+                                            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">₹{config.pricePerSqFt.toLocaleString()} <span className="text-sm font-semibold text-slate-500">/ sq.ft</span></h3>
+                                            <p className="text-xs text-slate-500 font-medium mt-1">Total Land ₹{(totalLandCost / 10000000).toFixed(2)} Cr</p>
+                                        </div>
+                                        <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
+                                            <i className="fa-solid fa-indian-rupee-sign"></i>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Project Value</p>
+                                            <h3 className="text-2xl font-extrabold text-emerald-600 mt-1">₹{(grandTotalProjectCost / 10000000).toFixed(2)} <span className="text-sm font-semibold text-slate-500">Crores</span></h3>
+                                            <p className="text-xs text-slate-500 font-medium mt-1">Incl. roads, approvals & dev</p>
+                                        </div>
+                                        <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl">
+                                            <i className="fa-solid fa-file-invoice-dollar"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Quick Interactive Layout Preview & Quick Control Form */}
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    {/* Left: Quick Parameter Adjuster */}
+                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                                <i className="fa-solid fa-sliders text-sky-500"></i> Quick Site Parameters
+                                            </h3>
+                                            <button 
+                                                onClick={() => setConfig(INITIAL_PROJECT)}
+                                                className="text-xs text-slate-400 hover:text-sky-500 font-semibold"
+                                            >
+                                                Reset
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-3 text-xs">
+                                            <div>
+                                                <label className="block font-semibold text-slate-700 mb-1">Project Name</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={config.projectName} 
+                                                    onChange={e => setConfig({...config, projectName: e.target.value})}
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="block font-semibold text-slate-700 mb-1">Total Length (ft)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={config.totalLength} 
+                                                        onChange={e => setConfig({...config, totalLength: Math.max(50, parseInt(e.target.value) || 0)})}
+                                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-bold"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block font-semibold text-slate-700 mb-1">Total Width (ft)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={config.totalWidth} 
+                                                        onChange={e => setConfig({...config, totalWidth: Math.max(50, parseInt(e.target.value) || 0)})}
+                                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-bold"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="block font-semibold text-slate-700 mb-1">Rate (₹ / Sq.Ft)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={config.pricePerSqFt} 
+                                                        onChange={e => setConfig({...config, pricePerSqFt: Math.max(100, parseInt(e.target.value) || 0)})}
+                                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-bold text-emerald-600"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block font-semibold text-slate-700 mb-1">Divide into Plots</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={config.numPlots} 
+                                                        onChange={e => setConfig({...config, numPlots: Math.max(2, Math.min(48, parseInt(e.target.value) || 2))})}
+                                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-bold text-sky-600"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="block font-semibold text-slate-700 mb-1">Road Width (ft)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={config.roadsWidth} 
+                                                        onChange={e => setConfig({...config, roadsWidth: Math.max(15, parseInt(e.target.value) || 0)})}
+                                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block font-semibold text-slate-700 mb-1">Park Ratio (%)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={Math.round(config.parkRatio * 100)} 
+                                                        onChange={e => setConfig({...config, parkRatio: (parseInt(e.target.value) || 0) / 100})}
+                                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => {
+                                                    setActiveTab("blueprint");
+                                                    showToast("Switched to Full Blueprint View");
+                                                }}
+                                                className="w-full mt-2 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition"
+                                            >
+                                                <i className="fa-solid fa-ruler-combined text-sky-400"></i> Open Blueprint Studio
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Center & Right: Interactive Visual Layout Preview Canvas */}
+                                    <div className="lg:col-span-2 bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between">
+                                        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                                            <div className="flex items-center gap-2 text-white text-xs font-bold">
+                                                <i className="fa-solid fa-draw-polygon text-sky-400"></i>
+                                                <span>2D Site Plan CAD Visualizer</span>
+                                                <span className="text-slate-400 font-normal">| Click plot to inspect</span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <button 
+                                                    onClick={() => setZoomLevel(prev => Math.max(0.6, prev - 0.1))}
+                                                    className="w-7 h-7 rounded bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-xs"
+                                                    title="Zoom Out"
+                                                >
+                                                    <i className="fa-solid fa-minus"></i>
+                                                </button>
+                                                <span className="text-xs text-slate-400 font-mono">{Math.round(zoomLevel * 100)}%</span>
+                                                <button 
+                                                    onClick={() => setZoomLevel(prev => Math.min(2.0, prev + 0.1))}
+                                                    className="w-7 h-7 rounded bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-xs"
+                                                    title="Zoom In"
+                                                >
+                                                    <i className="fa-solid fa-plus"></i>
+                                                </button>
+                                                <button
+                                                    onClick={() => setBlueprintViewMode(prev => prev === 'blueprint' ? 'realistic' : 'blueprint')}
+                                                    className="ml-2 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold border border-slate-700"
+                                                >
+                                                    {blueprintViewMode === 'blueprint' ? 'Blueprint CAD' : 'Realistic'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="relative overflow-hidden rounded-xl bg-slate-950 flex items-center justify-center my-3 border border-slate-800/80">
+                                            <canvas 
+                                                ref={canvasRef} 
+                                                width={720} 
+                                                height={440} 
+                                                onClick={handleCanvasClick}
+                                                className="cursor-crosshair max-w-full h-auto"
+                                            ></canvas>
+                                        </div>
+
+                                        {/* Status Legend Bar */}
+                                        <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800/80 gap-2">
+                                            <div className="flex items-center gap-4">
+                                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Available Sites</span>
+                                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500"></span> Booked Sites</span>
+                                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Reserved Sites</span>
+                                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-400/30 border border-emerald-400"></span> Open Park</span>
+                                            </div>
+                                            <span className="text-slate-400 font-mono">Arterial Road: {config.roadsWidth} FT</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ============================================================== */}
+                        {/* TAB 2: SITE LAYOUT PLANNING & DIVISION STUDIO                  */}
+                        {/* ============================================================== */}
+                        {activeTab === "layout" && (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* Left Controls */}
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                                    <div className="border-b border-slate-100 pb-3">
+                                        <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                                            <i className="fa-solid fa-vector-square text-sky-500"></i> Land Division Controls
+                                        </h3>
+                                        <p className="text-xs text-slate-500 mt-1">Configure layout subdivision, roads, pathways & parks</p>
+                                    </div>
+
+                                    {/* Number of Plots Slider */}
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
+                                            <span>Subdivision: Number of Plots</span>
+                                            <span className="text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">{config.numPlots} Plots</span>
+                                        </div>
+                                        <input 
+                                            type="range" 
+                                            min="4" 
+                                            max="32" 
+                                            step="2" 
+                                            value={config.numPlots} 
+                                            onChange={e => setConfig({...config, numPlots: parseInt(e.target.value)})}
+                                            className="w-full accent-sky-500 cursor-pointer"
+                                        />
+                                        <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-mono">
+                                            <span>4 Plots (Large Estates)</span>
+                                            <span>16 Standard</span>
+                                            <span>32 Plots (Dense)</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Road Width Controls */}
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
+                                            <span>Central Arterial Road Width</span>
+                                            <span className="text-slate-900 font-mono">{config.roadsWidth} Feet</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {[25, 30, 40].map(width => (
+                                                <button
+                                                    key={width}
+                                                    onClick={() => setConfig({...config, roadsWidth: width})}
+                                                    className={`py-2 text-xs font-semibold rounded-lg border transition ${
+                                                        config.roadsWidth === width 
+                                                            ? "bg-sky-500 text-white border-sky-500" 
+                                                            : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                                                    }`}
+                                                >
+                                                    {width} Ft Road
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Park & Open Space Ratio */}
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
+                                            <span>Community Park & Open Greenery</span>
+                                            <span className="text-emerald-600 font-mono font-bold">{Math.round(config.parkRatio * 100)}% ({parkAreaSqFt.toLocaleString()} sq.ft)</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {[0.08, 0.12, 0.18].map(ratio => (
+                                                <button
+                                                    key={ratio}
+                                                    onClick={() => setConfig({...config, parkRatio: ratio})}
+                                                    className={`py-2 text-xs font-semibold rounded-lg border transition ${
+                                                        config.parkRatio === ratio 
+                                                            ? "bg-emerald-600 text-white border-emerald-600" 
+                                                            : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                                                    }`}
+                                                >
+                                                    {Math.round(ratio * 100)}% Greenery
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Summary Stats Table */}
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-2">
+                                        <div className="flex justify-between text-slate-600">
+                                            <span>Total Gross Area:</span>
+                                            <span className="font-bold text-slate-900">{totalAreaSqFt.toLocaleString()} sq.ft</span>
+                                        </div>
+                                        <div className="flex justify-between text-slate-600">
+                                            <span>Road Network Area:</span>
+                                            <span className="font-bold text-slate-900">{roadAreaSqFt.toLocaleString()} sq.ft</span>
+                                        </div>
+                                        <div className="flex justify-between text-slate-600">
+                                            <span>Parks & Amenities Area:</span>
+                                            <span className="font-bold text-slate-900">{parkAreaSqFt.toLocaleString()} sq.ft</span>
+                                        </div>
+                                        <div className="flex justify-between text-emerald-700 border-t border-slate-200 pt-2 font-bold">
+                                            <span>Salable Plot Area:</span>
+                                            <span>{salablePlotAreaSqFt.toLocaleString()} sq.ft</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right: Live 2D Layout Canvas */}
+                                <div className="lg:col-span-2 bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between">
+                                    <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                                        <div>
+                                            <h3 className="text-white font-bold text-sm">2D Architectural Layout Canvas</h3>
+                                            <p className="text-xs text-slate-400">Click any plot to view physical bounds, dimensions & costs</p>
+                                        </div>
+                                        <button 
+                                            onClick={handleDownloadBlueprintPNG}
+                                            className="px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition flex items-center gap-1.5"
+                                        >
+                                            <i className="fa-solid fa-download"></i> Save Layout
+                                        </button>
+                                    </div>
+
+                                    <div className="my-4 overflow-hidden rounded-xl bg-slate-950 flex items-center justify-center border border-slate-800">
+                                        <canvas 
+                                            ref={canvasRef} 
+                                            width={720} 
+                                            height={440} 
+                                            onClick={handleCanvasClick}
+                                            className="cursor-crosshair max-w-full h-auto"
+                                        ></canvas>
+                                    </div>
+
+                                    <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700 flex items-center justify-between text-xs text-slate-300">
+                                        <div>
+                                            <span className="font-bold text-white">{selectedPlot ? selectedPlot.plotNumber : 'None'} Selected: </span>
+                                            <span>{selectedPlot ? `${selectedPlot.width}' × ${selectedPlot.length}' (${selectedPlot.sqFt} Sq.Ft) — ${selectedPlot.facing}` : 'Click any plot on canvas'}</span>
+                                        </div>
+                                        <button 
+                                            onClick={() => setActiveTab("plots")}
+                                            className="text-sky-400 hover:text-sky-300 font-bold underline"
+                                        >
+                                            View Details &rarr;
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ============================================================== */}
+                        {/* TAB 3: COST ESTIMATION & FINANCIAL BREAKDOWN                   */}
+                        {/* ============================================================== */}
+                        {activeTab === "cost" && (
+                            <div className="space-y-6">
+                                {/* Formula Banner */}
+                                <div className="bg-gradient-to-r from-sky-900 to-slate-900 text-white p-6 rounded-2xl border border-sky-800/60 shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
+                                    <div>
+                                        <span className="text-xs bg-sky-500/20 text-sky-400 px-3 py-1 rounded-full font-bold uppercase tracking-wider border border-sky-500/30">
+                                            Cost Calculation Formula
+                                        </span>
+                                        <h3 className="text-xl font-extrabold text-white mt-2 font-mono">
+                                            Total Cost = Total Area (sq. ft.) × Price Per Sq. Ft.
+                                        </h3>
+                                        <p className="text-xs text-slate-300 mt-1">
+                                            Plus statutory registration, municipal infrastructure, and civil development charges.
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-800/90 border border-slate-700 p-4 rounded-xl text-right">
+                                        <div className="text-xs text-slate-400 font-medium">Grand Project Value</div>
+                                        <div className="text-2xl font-black text-emerald-400 font-mono">₹{grandTotalProjectCost.toLocaleString()}</div>
+                                        <div className="text-[11px] text-slate-400">₹{(grandTotalProjectCost / 10000000).toFixed(3)} Crores INR</div>
+                                    </div>
+                                </div>
+
+                                {/* Cost Breakdown Grid */}
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    {/* Cost Form */}
+                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                        <h4 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2 flex items-center gap-2">
+                                            <i className="fa-solid fa-coins text-amber-500"></i> Cost Parameters & Rates
+                                        </h4>
+
+                                        <div className="space-y-3 text-xs">
+                                            <div>
+                                                <label className="block font-semibold text-slate-700 mb-1">Land Acquisition Rate (₹ / Sq.Ft)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={config.pricePerSqFt} 
+                                                    onChange={e => setConfig({...config, pricePerSqFt: parseInt(e.target.value) || 0})}
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-bold text-slate-900"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block font-semibold text-slate-700 mb-1">Road Asphalt & Drainage (₹ / Sq.Ft of Road)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={config.roadCostPerSqFt} 
+                                                    onChange={e => setConfig({...config, roadCostPerSqFt: parseInt(e.target.value) || 0})}
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block font-semibold text-slate-700 mb-1">Government Registration & Stamp Duty (%)</label>
+                                                <input 
+                                                    type="number" 
+                                                    step="0.1"
+                                                    value={config.registrationDutyPercent} 
+                                                    onChange={e => setConfig({...config, registrationDutyPercent: parseFloat(e.target.value) || 0})}
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block font-semibold text-slate-700 mb-1">Site Development & Levelling (₹ / Sq.Ft Total)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={config.developmentChargePerSqFt} 
+                                                    onChange={e => setConfig({...config, developmentChargePerSqFt: parseInt(e.target.value) || 0})}
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block font-semibold text-slate-700 mb-1">Municipal Approvals & Survey Charges (₹)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={config.miscApprovalsCost} 
+                                                    onChange={e => setConfig({...config, miscApprovalsCost: parseInt(e.target.value) || 0})}
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Financial Breakdown Table */}
+                                    <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                        <h4 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2 flex items-center justify-between">
+                                            <span className="flex items-center gap-2">
+                                                <i className="fa-solid fa-receipt text-sky-500"></i> Detailed Project Financial Schedule
+                                            </span>
+                                            <span className="text-xs text-slate-500 font-normal">All values in INR (₹)</span>
+                                        </h4>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left text-xs border-collapse">
+                                                <thead>
+                                                    <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                                                        <th className="py-2.5 px-3 font-bold">Cost Component</th>
+                                                        <th className="py-2.5 px-3 font-bold">Basis / Metric</th>
+                                                        <th className="py-2.5 px-3 font-bold">Rate</th>
+                                                        <th className="py-2.5 px-3 font-bold text-right">Total Amount (₹)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                                                    <tr>
+                                                        <td className="py-3 px-3 font-semibold text-slate-900">1. Basic Land Valuation</td>
+                                                        <td className="py-3 px-3">{totalAreaSqFt.toLocaleString()} Sq.Ft</td>
+                                                        <td className="py-3 px-3">₹{config.pricePerSqFt.toLocaleString()} / sq.ft</td>
+                                                        <td className="py-3 px-3 text-right font-bold text-slate-900">₹{totalLandCost.toLocaleString()}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="py-3 px-3 font-semibold text-slate-900">2. Road Construction & Drainage</td>
+                                                        <td className="py-3 px-3">{roadAreaSqFt.toLocaleString()} Sq.Ft Road</td>
+                                                        <td className="py-3 px-3">₹{config.roadCostPerSqFt} / sq.ft</td>
+                                                        <td className="py-3 px-3 text-right font-bold text-slate-900">₹{roadConstructionCost.toLocaleString()}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="py-3 px-3 font-semibold text-slate-900">3. Stamp Duty & Gov Registration</td>
+                                                        <td className="py-3 px-3">Total Land Value</td>
+                                                        <td className="py-3 px-3">{config.registrationDutyPercent}%</td>
+                                                        <td className="py-3 px-3 text-right font-bold text-slate-900">₹{registrationCost.toLocaleString()}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="py-3 px-3 font-semibold text-slate-900">4. Internal Development (Paving, Streetlights)</td>
+                                                        <td className="py-3 px-3">{totalAreaSqFt.toLocaleString()} Sq.Ft</td>
+                                                        <td className="py-3 px-3">₹{config.developmentChargePerSqFt} / sq.ft</td>
+                                                        <td className="py-3 px-3 text-right font-bold text-slate-900">₹{developmentCost.toLocaleString()}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="py-3 px-3 font-semibold text-slate-900">5. Municipal Approvals, Survey & Legal</td>
+                                                        <td className="py-3 px-3">Fixed Fee</td>
+                                                        <td className="py-3 px-3">Lump sum</td>
+                                                        <td className="py-3 px-3 text-right font-bold text-slate-900">₹{parseInt(config.miscApprovalsCost).toLocaleString()}</td>
+                                                    </tr>
+                                                    <tr className="bg-emerald-50 text-emerald-950 font-extrabold text-sm border-t-2 border-emerald-300">
+                                                        <td className="py-3.5 px-3" colSpan="3">FINAL ESTIMATED PROJECT COST:</td>
+                                                        <td className="py-3.5 px-3 text-right text-emerald-700 font-mono text-base">₹{grandTotalProjectCost.toLocaleString()}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ============================================================== */}
+                        {/* TAB 4: ARCHITECTURAL 2D BLUEPRINT GENERATOR                    */}
+                        {/* ============================================================== */}
+                        {activeTab === "blueprint" && (
+                            <div className="space-y-4">
+                                {/* Blueprint Header Toolbar */}
+                                <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-3 shadow-xl">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-lg bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center justify-center">
+                                            <i className="fa-solid fa-ruler-combined"></i>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-sm text-white">Professional CAD Site Blueprint Generator</h3>
+                                            <p className="text-xs text-slate-400">Architectural white technical lines on blueprint blue canvas</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={() => setZoomLevel(prev => Math.max(0.6, prev - 0.1))}
+                                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700"
+                                        >
+                                            <i className="fa-solid fa-magnifying-glass-minus"></i> Zoom Out
+                                        </button>
+                                        <button 
+                                            onClick={() => setZoomLevel(prev => Math.min(2.0, prev + 0.1))}
+                                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700"
+                                        >
+                                            <i className="fa-solid fa-magnifying-glass-plus"></i> Zoom In
+                                        </button>
+                                        <button 
+                                            onClick={handleDownloadBlueprintPNG}
+                                            className="px-3.5 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold shadow-md shadow-sky-500/20 flex items-center gap-1.5"
+                                        >
+                                            <i className="fa-solid fa-file-image"></i> Download PNG
+                                        </button>
+                                        <button 
+                                            onClick={handlePrintPDF}
+                                            className="px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow-md shadow-teal-600/20 flex items-center gap-1.5"
+                                        >
+                                            <i className="fa-solid fa-file-pdf"></i> Export PDF
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Full Blueprint Stage Canvas */}
+                                <div className="blueprint-pattern rounded-2xl border-4 border-slate-800 p-8 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
+                                    {/* Architectural Title Block (Bottom Right) */}
+                                    <div className="absolute bottom-4 right-4 bg-slate-950/90 border-2 border-sky-400/60 p-4 rounded-xl text-left font-mono text-[11px] text-white backdrop-blur shadow-2xl max-w-xs z-10">
+                                        <div className="font-bold text-sky-400 border-b border-sky-400/30 pb-1 mb-1.5 flex items-center justify-between">
+                                            <span>SMART CAD BLUEPRINT</span>
+                                            <span className="text-[9px] bg-sky-500/30 px-1.5 py-0.2 rounded">DWG #2026-A1</span>
+                                        </div>
+                                        <div><span className="text-slate-400">PROJECT:</span> {config.projectName}</div>
+                                        <div><span className="text-slate-400">LOCATION:</span> {config.location}</div>
+                                        <div><span className="text-slate-400">ENGINEER:</span> {config.engineerName}</div>
+                                        <div><span className="text-slate-400">TOTAL AREA:</span> {totalAreaSqFt.toLocaleString()} SQ.FT</div>
+                                        <div><span className="text-slate-400">TOTAL PLOTS:</span> {plots.length} SITES</div>
+                                        <div className="border-t border-sky-400/30 pt-1 mt-1 text-[10px] text-emerald-400 font-bold">
+                                            STATUS: APPROVED FOR LAYOUT SUBDIVISION
+                                        </div>
+                                    </div>
+
+                                    {/* Canvas */}
+                                    <canvas 
+                                        ref={canvasRef} 
+                                        width={920} 
+                                        height={560} 
+                                        onClick={handleCanvasClick}
+                                        className="cursor-crosshair max-w-full h-auto drop-shadow-2xl"
+                                    ></canvas>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ============================================================== */}
+                        {/* TAB 5: PLOT DIRECTORY & DETAILED BREAKDOWN                     */}
+                        {/* ============================================================== */}
+                        {activeTab === "plots" && (
+                            <div className="space-y-6">
+                                {/* Filter Row */}
+                                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-slate-700">Filter Status:</span>
+                                        {['all', 'Available', 'Booked', 'Reserved'].map(status => (
+                                            <button
+                                                key={status}
+                                                onClick={() => setFilterCategory(status)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                                                    filterCategory === status
+                                                        ? "bg-slate-900 text-white border-slate-900"
+                                                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                                                }`}
+                                            >
+                                                {status === 'all' ? 'All Plots' : status}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="text-xs text-slate-500 font-medium">
+                                        Showing {plots.filter(p => filterCategory === 'all' || p.status === filterCategory).length} of {plots.length} Plots
+                                    </div>
+                                </div>
+
+                                {/* Plot Cards Grid */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {plots
+                                        .filter(p => filterCategory === 'all' || p.status === filterCategory)
+                                        .map((p) => {
+                                            const isSelected = selectedPlotId === p.id;
+                                            return (
+                                                <div 
+                                                    key={p.id}
+                                                    onClick={() => setSelectedPlotId(p.id)}
+                                                    className={`bg-white rounded-2xl border-2 p-5 shadow-sm cursor-pointer transition-all hover:-translate-y-1 ${
+                                                        isSelected ? "border-sky-500 ring-2 ring-sky-500/20 shadow-lg" : "border-slate-200 hover:border-slate-300"
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <span className="text-sm font-extrabold text-slate-900">{p.plotNumber}</span>
+                                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${
+                                                            p.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                                            p.status === 'Booked' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                                            'bg-amber-50 text-amber-700 border border-amber-200'
+                                                        }`}>
+                                                            {p.status}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs space-y-1.5 mb-3 font-medium">
+                                                        <div className="flex justify-between text-slate-600">
+                                                            <span>Dimensions:</span>
+                                                            <span className="font-bold font-mono text-slate-900">{p.width}' W × {p.length}' L</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-slate-600">
+                                                            <span>Total Area:</span>
+                                                            <span className="font-bold text-sky-600">{p.sqFt.toLocaleString()} Sq.Ft</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-slate-600">
+                                                            <span>Facing:</span>
+                                                            <span className="text-slate-900 text-[11px] font-semibold">{p.facing.split(' ')[0]}</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-slate-600">
+                                                            <span>1 Sq.Ft Rate:</span>
+                                                            <span className="font-bold text-emerald-600">₹{p.pricePerSqFt.toLocaleString()}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                                                        <div>
+                                                            <div className="text-[10px] text-slate-400 font-semibold uppercase">Total Price</div>
+                                                            <div className="text-base font-extrabold text-emerald-600 font-mono">₹{p.totalCost.toLocaleString()}</div>
+                                                        </div>
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedPlotId(p.id);
+                                                                showToast(`Bookmarked ${p.plotNumber}`);
+                                                            }}
+                                                            className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 hover:bg-sky-500 hover:text-white flex items-center justify-center text-xs transition"
+                                                        >
+                                                            <i className="fa-solid fa-arrow-right"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ============================================================== */}
+                        {/* TAB 6: DOWNLOAD REPORTS & EXPORTS                              */}
+                        {/* ============================================================== */}
+                        {activeTab === "reports" && (
+                            <div className="max-w-4xl mx-auto bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                                <div className="border-b border-slate-100 pb-4">
+                                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                        <i className="fa-solid fa-file-pdf text-red-500"></i> Land Planning &amp; Cost Estimation Report Dossier
+                                    </h3>
+                                    <p className="text-xs text-slate-500 mt-1">Export executive project dossiers, technical CAD blueprints, and pricing schedules</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 text-center space-y-3">
+                                        <div className="w-12 h-12 rounded-xl bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl">
+                                            <i className="fa-solid fa-file-pdf"></i>
+                                        </div>
+                                        <h4 className="font-bold text-slate-900 text-sm">Official PDF Report</h4>
+                                        <p className="text-xs text-slate-500">Complete multi-page document with executive summary & breakdown</p>
+                                        <button 
+                                            onClick={handlePrintPDF}
+                                            className="w-full py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold shadow-sm transition"
+                                        >
+                                            Print / Save PDF
+                                        </button>
+                                    </div>
+
+                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 text-center space-y-3">
+                                        <div className="w-12 h-12 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center mx-auto text-xl">
+                                            <i className="fa-solid fa-image"></i>
+                                        </div>
+                                        <h4 className="font-bold text-slate-900 text-sm">2D CAD Blueprint PNG</h4>
+                                        <p className="text-xs text-slate-500">High-resolution architectural drawing with measurements</p>
+                                        <button 
+                                            onClick={handleDownloadBlueprintPNG}
+                                            className="w-full py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-lg text-xs font-bold shadow-sm transition"
+                                        >
+                                            Export Blueprint
+                                        </button>
+                                    </div>
+
+                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 text-center space-y-3">
+                                        <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-xl">
+                                            <i className="fa-solid fa-table"></i>
+                                        </div>
+                                        <h4 className="font-bold text-slate-900 text-sm">CSV Cost Schedule</h4>
+                                        <p className="text-xs text-slate-500">Spreadsheet with individual plot dimensions, sq.ft & costs</p>
+                                        <button 
+                                            onClick={() => {
+                                                const csvRows = [
+                                                    ["Plot Number", "Width (ft)", "Length (ft)", "Area (Sq.Ft)", "Facing", "Price Per SqFt (INR)", "Total Cost (INR)", "Status"],
+                                                    ...plots.map(p => [p.plotNumber, p.width, p.length, p.sqFt, p.facing, p.pricePerSqFt, p.totalCost, p.status])
+                                                ];
+                                                const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(",")).join("\n");
+                                                const encodedUri = encodeURI(csvContent);
+                                                const link = document.createElement("a");
+                                                link.setAttribute("href", encodedUri);
+                                                link.setAttribute("download", `${config.projectName.replace(/\s+/g, '_')}_Plots.csv`);
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                                showToast("Plot Schedule CSV Exported!");
+                                            }}
+                                            className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-sm transition"
+                                        >
+                                            Download CSV
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Footer */}
+                    <footer className="no-print bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-500">
+                        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-800">SmartSite Planner Pro</span> &bull; 
+                                <span>Civil Engineering &amp; Real Estate Cadastral Architecture</span>
+                            </div>
+                            <div>
+                                <span>Govt. Town Planning &amp; Urban Master Layout Standard</span>
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        // Mount React Root
+        ReactDOM.createRoot(document.getElementById("root")).render(<SmartSitePlannerApp />);
+    </script>
+</body>
+</html>

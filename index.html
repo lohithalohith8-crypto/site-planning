@@ -332,9 +332,14 @@
                                     Next <i class="fa-solid fa-arrow-right"></i>
                                 </button>
                             </div>
-                            <button type="button" class="btn-primary btn-spotlight-action" id="spotlight-action-btn">
-                                <i class="fa-solid fa-arrow-right"></i> <span>Open Sira Gate Facilities &rarr;</span>
-                            </button>
+                            <div class="spotlight-buttons-group" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button type="button" class="btn-primary btn-spotlight-action" id="spotlight-action-btn">
+                                    <i class="fa-solid fa-arrow-right"></i> <span>Open Sira Gate Facilities &rarr;</span>
+                                </button>
+                                <button type="button" class="btn-primary" id="spotlight-layouts-btn" style="background: linear-gradient(135deg, #059669, #047857); box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);">
+                                    <i class="fa-solid fa-shapes"></i> <span id="spotlight-layouts-text">View 2 Layouts in Sira Gate &rarr;</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -556,6 +561,14 @@
                 <div class="area-switcher-pills" id="area-switcher-pills">
                     <!-- Populated by JS for rapid switching -->
                 </div>
+
+                <!-- Quick Action to View Layout in this Area -->
+                <div class="area-banner-action-row" style="margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" class="btn-primary" id="btn-view-area-layouts" onclick="window.app && window.app.showLayoutsPage(window.app.selectedAreaId)" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 700; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);">
+                        <i class="fa-solid fa-map-marked-alt"></i>
+                        <span>Explore Layout Planning (Sites, Dimensions & Booking) &rarr;</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Filter Controls Bar -->
@@ -716,9 +729,17 @@
                 <!-- Row 2: Category Filter + Utility -->
                 <div class="map-page-utility-row">
                     <div class="map-area-selector-group">
-                        <span class="filter-group-label"><i class="fa-solid fa-layer-group"></i> Category:</span>
-                        <div class="map-area-pills" id="map-category-pills">
-                            <!-- JS fills category pills -->
+                        <span class="filter-group-label"><i class="fa-solid fa-layer-group"></i> Layer View:</span>
+                        <div class="map-layer-mode-tabs" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" class="btn-map-area-pill active" id="btn-map-mode-sites" style="background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700;">
+                                <i class="fa-solid fa-shapes"></i> All Sites
+                            </button>
+                            <button type="button" class="btn-map-area-pill" id="btn-map-only-empty" style="border: 2px solid #10b981; color: #047857; font-weight: 700;">
+                                <span class="site-dot-pin dot-available" style="width: 10px; height: 10px; display: inline-block;"></span> Empty Sites Only (Green)
+                            </button>
+                            <button type="button" class="btn-map-area-pill" id="btn-map-mode-facilities">
+                                <i class="fa-solid fa-building-columns"></i> Facilities
+                            </button>
                         </div>
                     </div>
                     <div class="map-utility-btns">
@@ -727,7 +748,7 @@
                             <i class="fa-solid fa-crosshairs"></i> Recenter
                         </button>
                         <button type="button" class="btn-map-control" id="btn-toggle-map-sidebar">
-                            <i class="fa-solid fa-list"></i> Facility List
+                            <i class="fa-solid fa-list"></i> Item List
                         </button>
                     </div>
                 </div>
@@ -751,18 +772,438 @@
                 </div>
             </div>
 
-            <!-- Map Legend Bar -->
-            <div class="map-legend-bar" style="padding: 8px 20px; background: rgba(255,255,255,0.95); border-top: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 0.78rem;">
-                <span class="legend-title"><i class="fa-solid fa-layer-group"></i> Legend:</span>
-                <span class="legend-item"><span class="legend-color-dot" style="background: #2563eb;"></span> Schools</span>
-                <span class="legend-item"><span class="legend-color-dot" style="background: #dc2626;"></span> Hospitals</span>
-                <span class="legend-item"><span class="legend-color-dot" style="background: #ea580c;"></span> Post Offices</span>
-                <span class="legend-item"><span class="legend-color-dot" style="background: #059669;"></span> Medicals</span>
-                <span class="legend-item"><span class="legend-color-dot" style="background: #1e40af;"></span> Police</span>
-                <span class="legend-item"><span class="legend-color-dot" style="background: #b45309;"></span> Banks</span>
-                <span class="legend-item"><span class="legend-color-dot" style="background: #16a34a;"></span> Parks</span>
+            <!-- Map Legend Bar (Sites Dot Markers: Green = Available, Red = Booked, Orange = Reserved) -->
+            <div class="map-legend-bar" id="dedicated-map-legend" style="padding: 10px 20px; background: rgba(255,255,255,0.98); border-top: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-size: 0.82rem; font-weight: 600;">
+                <span class="legend-title" style="color: #0f172a; font-weight: 800;"><i class="fa-solid fa-shapes"></i> Sites Status Dot Marks:</span>
+                <span class="legend-item" style="display: inline-flex; align-items: center; gap: 6px;"><span class="site-dot-pin dot-available" style="width: 14px; height: 14px; display: inline-block;"></span> <strong style="color: #059669;">Available Site (Green Dot)</strong></span>
+                <span class="legend-item" style="display: inline-flex; align-items: center; gap: 6px;"><span class="site-dot-pin dot-booked" style="width: 14px; height: 14px; display: inline-block;"></span> <strong style="color: #dc2626;">Booked Site (Red Dot)</strong></span>
+                <span class="legend-item" style="display: inline-flex; align-items: center; gap: 6px;"><span class="site-dot-pin dot-reserved" style="width: 14px; height: 14px; display: inline-block;"></span> <strong style="color: #d97706;">Reserved Site (Orange Dot)</strong></span>
             </div>
         </div>
+    </main>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 5: AREA 2 LAYOUTS & SITES VIEW                           -->
+    <!-- Displays the 2 Layouts in the selected Area, each with        -->
+    <!-- Sites length, width, area sq.ft, costs, and map layout        -->
+    <!-- ============================================================== -->
+    <main id="page-layouts" class="app-page">
+        <!-- Top Navbar -->
+        <header class="app-navbar">
+            <div class="nav-container">
+                <div class="nav-brand">
+                    <button type="button" class="btn-nav-back" id="layouts-back-to-areas-btn" title="Back to Areas">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>&larr; Back to Areas</span>
+                    </button>
+                    <div class="nav-titles" style="margin-left: 12px;">
+                        <div class="brand-title-group">
+                            <span class="brand-main" id="layouts-page-area-name">Area Layouts & Sites</span>
+                            <span class="brand-kannada" id="layouts-page-area-kannada">ಬಡಾವಣೆಗಳು ಮತ್ತು ನಿವೇಶನಗಳು</span>
+                        </div>
+                        <span class="brand-sub">2 Approved Layouts &bull; Dimension, Sq.Ft, Cost & Map Plan</span>
+                    </div>
+                </div>
+
+                <div class="nav-controls">
+                    <button type="button" class="btn-outline-pill" id="layouts-view-facilities-btn" style="background: #fff; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 9999px; font-size: 0.82rem; font-weight: 600; cursor: pointer; color: var(--primary);">
+                        <i class="fa-solid fa-building-columns"></i> View Facilities in this Area
+                    </button>
+                    <button type="button" class="btn-logout" id="logout-btn-layouts" title="Sign out of portal">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-body-container">
+            <!-- Breadcrumbs -->
+            <div class="page-breadcrumb-bar">
+                <div class="breadcrumb-trail">
+                    <a href="javascript:void(0)" onclick="window.app && window.app.showAreasPage()" style="color: var(--primary); text-decoration: none; font-weight: 700;">
+                        <i class="fa-solid fa-house"></i> Tumakuru Areas
+                    </a>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+                    <span id="breadcrumb-layouts-area-name">Selected Area</span>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+                    <strong>2 Layouts & Sites Planning</strong>
+                </div>
+
+                <div class="breadcrumb-actions" style="display: flex; gap: 8px;">
+                    <button type="button" class="btn-breadcrumb-back" onclick="window.app && window.app.showAreasPage()">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>Back to 5 Areas</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Area Layouts Showcase Header -->
+            <div class="selected-area-banner">
+                <div class="selected-area-details">
+                    <div class="area-badge-cluster">
+                        <span class="active-pulse-badge">
+                            <span class="pulse-dot"></span> Master Layout Planning
+                        </span>
+                        <span class="area-pincode-badge" id="layouts-area-pincode">PIN: 572106</span>
+                    </div>
+                    <h2 class="current-area-name" id="layouts-area-header-title">
+                        Master Layout &amp; Sites Planning
+                    </h2>
+                    <h3 class="current-area-kannada" id="layouts-area-header-kannada">
+                        ಅನುಮೋದಿತ ಬಡಾವಣೆ ಹಾಗೂ ನಿವೇಶನಗಳು
+                    </h3>
+                    <p class="current-area-desc" id="layouts-area-header-desc">
+                        Explore planning, exact dimensions (length & width), square feet area, total costs, and interactive layout map. Click any site to open its complete booking details page.
+                    </p>
+                </div>
+
+                <!-- Area Switcher for Layouts -->
+                <div class="area-switcher-pills" id="layouts-area-switcher-pills">
+                    <!-- Dynamic area pills -->
+                </div>
+            </div>
+
+            <!-- Layout Tabs Switcher (Switch between Layout 1 & Layout 2) -->
+            <div class="layouts-tab-selector-bar">
+                <div class="layouts-tab-buttons" id="layout-tab-buttons">
+                    <!-- Tab buttons for Layout 1 & Layout 2 -->
+                </div>
+            </div>
+
+            <!-- Active Layout Overview Card -->
+            <div class="active-layout-card" id="active-layout-overview">
+                <!-- Dynamically rendered Layout 1 or Layout 2 details -->
+            </div>
+
+            <!-- Sites Interactive Map & Planning Section -->
+            <section class="layout-sites-map-section">
+                <div class="section-header-row" style="margin-bottom: 16px;">
+                    <div>
+                        <div class="section-tag">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                            <span>Interactive Map & Planning &bull; Square Feet & Dimensions</span>
+                        </div>
+                        <h3 class="section-title" id="sites-map-section-title">
+                            Layout Master Plan & Geographic Map
+                        </h3>
+                        <p class="section-subtitle">
+                            Every site is pinpointed with exact coordinates, length &times; width, area in sq.ft, and real-time availability. Click any marker or site card to open the booking page.
+                        </p>
+                    </div>
+
+                    <div class="map-action-controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="btn-primary" id="btn-open-full-sites-map" onclick="window.app && window.app.openMapPage('layouts')" style="background: linear-gradient(135deg, #059669, #047857); padding: 8px 16px; border-radius: var(--radius-sm); font-weight: 700; font-size: 0.85rem; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);">
+                            <i class="fa-solid fa-map-location-dot"></i> Open Map on Next Page &rarr;
+                        </button>
+                        <button type="button" class="btn-map-control" id="btn-recenter-layout-map">
+                            <i class="fa-solid fa-crosshairs"></i> Recenter
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Interactive Leaflet Map for Sites -->
+                <div class="layout-map-wrapper">
+                    <div id="layout-map-container" class="leaflet-map-canvas" style="height: 400px; border-radius: var(--radius-md); box-shadow: var(--shadow-md);"></div>
+                    <div class="layout-map-legend">
+                        <span class="legend-title"><i class="fa-solid fa-shapes"></i> Sites Dot Mark Legend:</span>
+                        <span class="legend-item"><span class="site-dot-pin dot-available" style="width: 14px; height: 14px; display: inline-block;"></span> <strong style="color: #059669;">Available Site (Green Dot Mark)</strong></span>
+                        <span class="legend-item"><span class="site-dot-pin dot-booked" style="width: 14px; height: 14px; display: inline-block;"></span> <strong style="color: #dc2626;">Booked Site (Red Dot Mark)</strong></span>
+                        <span class="legend-item"><span class="site-dot-pin dot-reserved" style="width: 14px; height: 14px; display: inline-block;"></span> <strong style="color: #d97706;">Reserved Site (Orange Dot Mark)</strong></span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sites Cards Grid (Length, Width, Sq.Ft, Cost, Click to Book) -->
+            <section class="sites-grid-section" style="margin-top: 28px;">
+                <div class="section-header-row" style="margin-bottom: 16px;">
+                    <div>
+                        <div class="section-tag">
+                            <i class="fa-solid fa-border-all"></i>
+                            <span>Sites Directory &bull; Length &times; Width &bull; Costs</span>
+                        </div>
+                        <h3 class="section-title">
+                            Available & Planned Sites in this Layout
+                        </h3>
+                        <p class="section-subtitle">
+                            Click on any site below to proceed to the next page for site booking details, payment schedule, and booking confirmation.
+                        </p>
+                    </div>
+
+                    <div class="sites-filter-row">
+                        <select id="sites-status-filter" class="custom-select" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-light); font-weight: 600;">
+                            <option value="all">All Sites</option>
+                            <option value="Available">Available Only</option>
+                            <option value="Corner">Corner Plots Only</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sites Grid Container -->
+                <div class="sites-cards-grid" id="sites-cards-grid">
+                    <!-- Dynamic site cards rendered with Length, Width, Sq.Ft, Cost, Image -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-bottom">
+                <p>&copy; 2026 Smart City Tumakuru Portal &bull; Urban Development &amp; Layout Planning Authority</p>
+                <div class="footer-sub-links">
+                    <a href="javascript:void(0)" onclick="window.app && window.app.showAreasPage()" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
+                        &larr; Return to 5 Areas
+                    </a>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 6: SITE BOOKING DETAILS PAGE                             -->
+    <!-- Opens when user clicks on a site from the layouts page        -->
+    <!-- Shows complete site booking details, images in sq.ft, maps,  -->
+    <!-- and interactive booking submission form                       -->
+    <!-- ============================================================== -->
+    <main id="page-site-booking" class="app-page">
+        <!-- Top Navbar -->
+        <header class="app-navbar">
+            <div class="nav-container">
+                <div class="nav-brand">
+                    <button type="button" class="btn-nav-back" id="booking-back-to-layouts-btn" title="Back to Layouts">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>&larr; Back to Layouts</span>
+                    </button>
+                    <div class="nav-titles" style="margin-left: 12px;">
+                        <div class="brand-title-group">
+                            <span class="brand-main" id="booking-navbar-site-name">Site Booking Details</span>
+                            <span class="brand-kannada">ನಿವೇಶನ ಮುಂಗಡ ನೋಂದಣಿ</span>
+                        </div>
+                        <span class="brand-sub" id="booking-navbar-layout-name">Layout &amp; Site Specification</span>
+                    </div>
+                </div>
+
+                <div class="nav-controls">
+                    <button type="button" class="btn-logout" id="logout-btn-booking" title="Sign out of portal">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-body-container">
+            <!-- Breadcrumbs -->
+            <div class="page-breadcrumb-bar">
+                <div class="breadcrumb-trail">
+                    <a href="javascript:void(0)" onclick="window.app && window.app.showAreasPage()" style="color: var(--primary); text-decoration: none; font-weight: 700;">
+                        <i class="fa-solid fa-house"></i> Tumakuru Areas
+                    </a>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+                    <a href="javascript:void(0)" onclick="window.app && window.app.showLayoutsPage(window.app.selectedAreaId)" style="color: var(--primary); text-decoration: none; font-weight: 700;" id="breadcrumb-booking-area-link">
+                        Area Layouts
+                    </a>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+                    <span id="breadcrumb-booking-site-title">Site #01</span>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+                    <strong>Booking Details</strong>
+                </div>
+
+                <button type="button" class="btn-breadcrumb-back" id="booking-trail-back-btn">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back to Layouts</span>
+                </button>
+            </div>
+
+            <!-- Booking Main Stage Grid -->
+            <div class="booking-stage-grid">
+                <!-- Left Column: Site Visuals, Dimensions in Sq.Ft, Specifications & Map -->
+                <div class="booking-details-column">
+                    <!-- Site Hero Banner Card -->
+                    <div class="booking-hero-card" id="booking-hero-card">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <!-- Site Dimension & Square Feet Visual Showcase -->
+                    <div class="site-dimension-showcase-card">
+                        <div class="dimension-header">
+                            <div class="dimension-icon"><i class="fa-solid fa-ruler-combined"></i></div>
+                            <div>
+                                <h4>Site Dimensions &amp; Square Feet Blueprint</h4>
+                                <p>Verified physical bounds, facing direction, and frontage</p>
+                            </div>
+                        </div>
+
+                        <!-- 2D Architectural Plot Diagram with Length & Width -->
+                        <div class="plot-blueprint-diagram" id="plot-blueprint-diagram">
+                            <!-- Populated with SVG interactive blueprint -->
+                        </div>
+
+                        <!-- Key Metrics Grid -->
+                        <div class="blueprint-metrics-grid" id="blueprint-metrics-grid">
+                            <!-- Length, Width, Area Sq.Ft, Cost/Sq.Ft, Total Cost -->
+                        </div>
+                    </div>
+
+                    <!-- High-Resolution Site Imagery & Map Showcase -->
+                    <div class="site-imagery-showcase-card">
+                        <div class="dimension-header">
+                            <div class="dimension-icon"><i class="fa-solid fa-image"></i></div>
+                            <div>
+                                <h4>Site Aerial &amp; Ground View with Sq.Ft Overlay</h4>
+                                <p>High-resolution real-world layout views &amp; boundary markers</p>
+                            </div>
+                        </div>
+
+                        <div class="site-images-grid" id="site-images-grid">
+                            <!-- Dynamically loaded photos with sq.ft badges -->
+                        </div>
+
+                        <!-- Site Map Location Canvas -->
+                        <div style="margin-top: 20px;">
+                            <h5 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; color: var(--text-primary);">
+                                <i class="fa-solid fa-location-crosshairs" style="color: var(--primary);"></i> Exact Geographic Location &amp; Surroundings Map
+                            </h5>
+                            <div id="booking-site-map-container" class="leaflet-map-canvas" style="height: 320px; border-radius: var(--radius-md);"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Site Cost Breakdown & Booking Reservation Form -->
+                <div class="booking-action-column">
+                    <!-- Pricing & Cost Summary Card -->
+                    <div class="booking-cost-card" id="booking-cost-breakdown">
+                        <!-- Populated dynamically with cost calculations -->
+                    </div>
+
+                    <!-- Official Site Booking Application Form -->
+                    <div class="booking-form-card">
+                        <div class="form-header">
+                            <div class="form-icon"><i class="fa-solid fa-file-signature"></i></div>
+                            <div>
+                                <h3>Citizen Site Booking Request</h3>
+                                <p>Submit your application for provisional site booking</p>
+                            </div>
+                        </div>
+
+                        <form id="site-booking-form" novalidate>
+                            <input type="hidden" id="booking-site-id" value="">
+                            <input type="hidden" id="booking-layout-id" value="">
+
+                            <!-- Applicant Name -->
+                            <div class="form-group">
+                                <label for="applicant-name">
+                                    <i class="fa-solid fa-user"></i> Full Applicant Name *
+                                </label>
+                                <div class="input-wrapper">
+                                    <input type="text" id="applicant-name" required placeholder="e.g. Ramesh Kumar" value="Ramesh Kumar">
+                                </div>
+                            </div>
+
+                            <!-- Phone -->
+                            <div class="form-group">
+                                <label for="applicant-phone">
+                                    <i class="fa-solid fa-phone"></i> Mobile Phone Number *
+                                </label>
+                                <div class="input-wrapper">
+                                    <input type="tel" id="applicant-phone" required placeholder="e.g. +91 98450 12345" value="+91 98450 12345">
+                                </div>
+                            </div>
+
+                            <!-- Email -->
+                            <div class="form-group">
+                                <label for="applicant-email">
+                                    <i class="fa-solid fa-envelope"></i> Email Address *
+                                </label>
+                                <div class="input-wrapper">
+                                    <input type="email" id="applicant-email" required placeholder="e.g. ramesh.kumar@gmail.com" value="ramesh.kumar@gmail.com">
+                                </div>
+                            </div>
+
+                            <!-- Aadhaar Number -->
+                            <div class="form-group">
+                                <label for="applicant-aadhaar">
+                                    <i class="fa-solid fa-id-card"></i> Aadhaar Number (Last 4 Digits) *
+                                </label>
+                                <div class="input-wrapper">
+                                    <input type="text" id="applicant-aadhaar" maxlength="4" required placeholder="e.g. 5678" value="7890">
+                                </div>
+                            </div>
+
+                            <!-- Payment Preference -->
+                            <div class="form-group">
+                                <label for="payment-mode">
+                                    <i class="fa-solid fa-credit-card"></i> Advance Token Payment Mode
+                                </label>
+                                <select id="payment-mode" class="custom-select">
+                                    <option value="UPI / QR Code">UPI / QR Code (Google Pay, PhonePe, Paytm)</option>
+                                    <option value="Net Banking / NEFT">Net Banking / NEFT / RTGS</option>
+                                    <option value="Cheque / DD">Bank Demand Draft / Cheque</option>
+                                    <option value="Bank Loan Assistance">Bank Loan Assistance Pre-Sanction</option>
+                                </select>
+                            </div>
+
+                            <!-- Booking Remarks -->
+                            <div class="form-group">
+                                <label for="booking-remarks">
+                                    <i class="fa-solid fa-comment-dots"></i> Special Notes / Queries
+                                </label>
+                                <textarea id="booking-remarks" rows="2" placeholder="e.g. Interested in loan financing through SBI or Canara Bank"></textarea>
+                            </div>
+
+                            <!-- Terms Checkbox -->
+                            <div class="form-check-group" style="margin-bottom: 18px;">
+                                <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem; color: var(--text-secondary); cursor: pointer;">
+                                    <input type="checkbox" id="booking-terms-agree" checked required style="margin-top: 3px;">
+                                    <span>I confirm that the site details, length &times; width, area in sq.ft, and cost have been reviewed by me under TUDA / Smart City terms.</span>
+                                </label>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button type="submit" class="btn-primary" id="btn-submit-booking" style="width: 100%; padding: 14px; font-size: 1rem; font-weight: 700; border-radius: var(--radius-md);">
+                                <i class="fa-solid fa-check-circle"></i> Confirm Site Booking &amp; Generate Slip
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Site Blueprint Modal (Directly opens when clicking sites in map) -->
+        <div class="modal-backdrop hidden" id="site-blueprint-modal" role="dialog" aria-modal="true">
+            <div class="facility-modal-dialog" style="max-width: 680px;">
+                <button type="button" class="modal-close-btn" id="blueprint-modal-close-btn" title="Close Blueprint">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="modal-body" id="site-blueprint-modal-body">
+                    <!-- Populated dynamically with complete site blueprint -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Booking Confirmation Modal -->
+        <div class="modal-backdrop hidden" id="booking-confirm-modal" role="dialog" aria-modal="true">
+            <div class="facility-modal-dialog" style="max-width: 600px;">
+                <button type="button" class="modal-close-btn" id="booking-modal-close-btn" title="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="modal-body" id="booking-confirm-modal-body">
+                    <!-- Populated dynamically with booking slip -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-bottom">
+                <p>&copy; 2026 Smart City Tumakuru Portal &bull; Site Booking &amp; Registration Authority</p>
+                <div class="footer-sub-links">
+                    <a href="javascript:void(0)" onclick="window.app && window.app.showLayoutsPage(window.app.selectedAreaId)" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
+                        &larr; Back to Area Layouts
+                    </a>
+                </div>
+            </div>
+        </footer>
     </main>
 
     <!-- Scripts -->
